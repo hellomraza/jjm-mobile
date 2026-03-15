@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Pressable,
   SafeAreaView,
@@ -7,10 +9,24 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
+import { RootStackParamList } from '../navigation/RootNavigator';
+
+type LoginNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Login'
+>;
 
 export function LoginScreen() {
+  const navigation = useNavigation<LoginNavigationProp>();
+  const { loginMutation } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleLoginPress = async () => {
+    await loginMutation.mutateAsync({ email, password });
+    navigation.replace('WorkItemList');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -39,7 +55,12 @@ export function LoginScreen() {
           testID="login-password-input"
         />
 
-        <Pressable style={styles.button} testID="login-submit-button">
+        <Pressable
+          style={styles.button}
+          onPress={handleLoginPress}
+          disabled={loginMutation.isPending}
+          testID="login-submit-button"
+        >
           <Text style={styles.buttonText}>Login</Text>
         </Pressable>
       </View>
