@@ -1,20 +1,56 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 export function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.card}>
         <Text style={styles.title}>JJM Employee Login</Text>
-        <Text style={styles.subtitle}>Login screen placeholder</Text>
+        <Text style={styles.subtitle}>Sign in to continue</Text>
+
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Enter email"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          style={styles.input}
+          testID="login-email-input"
+        />
+
+        <Text style={styles.label}>Password</Text>
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Enter password"
+          secureTextEntry
+          style={styles.input}
+          testID="login-password-input"
+        />
+
+        <Pressable style={styles.button} testID="login-submit-button">
+          <Text style={styles.buttonText}>Login</Text>
+        </Pressable>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
     padding: 16,
     justifyContent: 'center',
   },
@@ -34,5 +70,34 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#111827',
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    color: '#111827',
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  input: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    fontSize: 16,
+    color: '#111827',
+  },
+  button: {
+    marginTop: 16,
+    backgroundColor: '#126EB6',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
