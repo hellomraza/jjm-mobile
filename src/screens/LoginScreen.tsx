@@ -22,10 +22,29 @@ export function LoginScreen() {
   const { loginMutation } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleLoginPress = async () => {
-    await loginMutation.mutateAsync({ email, password });
-    navigation.replace('WorkItemList');
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail || !password.trim()) {
+      setErrorMessage('Email and password are required.');
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    setErrorMessage('');
+
+    try {
+      await loginMutation.mutateAsync({ email: normalizedEmail, password });
+      navigation.replace('WorkItemList');
+    } catch {
+      setErrorMessage('Login failed. Please try again.');
+    }
   };
 
   return (
@@ -63,6 +82,12 @@ export function LoginScreen() {
         >
           <Text style={styles.buttonText}>Login</Text>
         </Pressable>
+
+        {errorMessage ? (
+          <Text style={styles.errorText} testID="login-error-text">
+            {errorMessage}
+          </Text>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -120,5 +145,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorText: {
+    marginTop: 12,
+    color: '#B91C1C',
+    fontSize: 14,
   },
 });
