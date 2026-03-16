@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useComponents } from '../hooks/useComponents';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 
@@ -17,52 +18,21 @@ type ComponentListNavigationProp = NativeStackNavigationProp<
   'ComponentList'
 >;
 
-type ComponentListItem = {
-  id: string;
-  name: string;
-  progress: number;
-  quantity?: number;
-  status: string;
-};
-
-const previewComponents: ComponentListItem[] = [
-  {
-    id: 'component-preview-1',
-    name: 'Pumping Mains',
-    progress: 120,
-    quantity: 300,
-    status: 'PENDING',
-  },
-  {
-    id: 'component-preview-2',
-    name: 'Overhead Tank',
-    progress: 1,
-    quantity: 1,
-    status: 'APPROVED',
-  },
-  {
-    id: 'component-preview-3',
-    name: 'Distribution Pipeline',
-    progress: 45,
-    quantity: 150,
-    status: 'IN_PROGRESS',
-  },
-];
-
-function formatProgress(item: ComponentListItem) {
-  if (typeof item.quantity === 'number') {
-    return `${item.progress} / ${item.quantity}`;
+function formatProgress(progress: number, quantity?: number) {
+  if (typeof quantity === 'number') {
+    return `${progress} / ${quantity}`;
   }
 
-  return `${item.progress}`;
+  return `${progress}`;
 }
 
 export function ComponentListScreen() {
   const navigation = useNavigation<ComponentListNavigationProp>();
   const route = useRoute<ComponentListRouteProp>();
   const { workItemId, title } = route.params;
+  const { data: components, isLoading, isError } = useComponents(workItemId);
 
-  const renderItem = ({ item }: { item: ComponentListItem }) => (
+  const renderItem = ({ item }: { item: NonNullable<typeof components>[number] }) => (
     <Pressable
       style={styles.row}
       testID={`component-row-${item.id}`}
@@ -70,15 +40,22 @@ export function ComponentListScreen() {
         navigation.navigate('UploadPhoto', {
           workItemId,
           componentId: item.id,
-          componentName: item.name,
+          componentName: item.component?.name ?? 'Component',
         })
       }
     >
       <View style={styles.rowHeader}>
-        <Text style={styles.componentName}>{item.name}</Text>
+        <Text style={styles.componentName}>
+          {item.component?.name ?? 'Unnamed Component'}
+        </Text>
         <Text style={styles.status}>{item.status}</Text>
       </View>
-      <Text style={styles.meta}>Progress: {formatProgress(item)}</Text>
+      <Text style={styles.meta}>
+        Progress: {formatProgress(item.progress, item.quantity)}
+      </Text>
+      {typeof item.quantity === 'number' ? (
+        <Text style={styles.meta}>Quantity: {item.quantity}</Text>
+      ) : null}
     </Pressable>
   );
 
@@ -90,12 +67,20 @@ export function ComponentListScreen() {
         <Text style={styles.caption}>Work Item ID: {workItemId}</Text>
       </View>
 
-      <FlatList
-        data={previewComponents}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-      />
+      {isLoading ? <Text testID="components-loading-text">Loading components...</Text> : null}
+      {isError ? <Text testID="components-error-text">Failed to load components.</Text> : null}
+      {!isLoading && !isError && (components?.length ?? 0) === 0 ? (
+        <Text testID="components-empty-text">No components found.</Text>
+      ) : null}
+
+      {!isLoading && !isError ? (
+        <FlatList
+          data={components ?? []}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
