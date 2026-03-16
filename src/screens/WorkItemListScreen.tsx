@@ -5,7 +5,9 @@ export function WorkItemListScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
         <Text style={styles.title}>Work Items</Text>
-        <Text style={styles.subtitle}>Work item list will be implemented in Task 7.</Text>
+        <Text style={styles.subtitle}>
+          Work item list will be implemented in Task 7.
+        </Text>
       </View>
     </SafeAreaView>
   );
