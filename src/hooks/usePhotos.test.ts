@@ -1,7 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
 import api from '../api/client';
 import type { ComponentPhoto } from './usePhotos';
-import { componentPhotosQueryKey, fetchComponentPhotos } from './usePhotos';
+import {
+  componentPhotosQueryKey,
+  fetchComponentPhotos,
+  uploadComponentPhoto,
+} from './usePhotos';
 
 jest.mock('../api/client', () => ({
   __esModule: true,
@@ -103,5 +107,35 @@ describe('usePhotos', () => {
     expect(
       queryClient.getQueryData(componentPhotosQueryKey('component-1')),
     ).toEqual(mockPhotos);
+  });
+
+  it('uploadComponentPhoto calls POST /components/:componentId/photos and returns data', async () => {
+    const payload = {
+      progress: 50,
+      latitude: 25.5941,
+      longitude: 85.1376,
+      image: 'base64-photo',
+    };
+
+    const uploadedPhoto = {
+      id: 'photo-2',
+      image_url: 'https://example.com/photo-2.jpg',
+      latitude: 25.5941,
+      longitude: 85.1376,
+      timestamp: '2026-03-16T01:00:00Z',
+      employee_id: 'employee-1',
+      component_id: 'component-1',
+      work_item_id: 'work-item-1',
+      is_selected: false,
+      is_forwarded_to_do: false,
+      created_at: '2026-03-16T01:00:00Z',
+    };
+
+    (api.post as jest.Mock).mockResolvedValue({ data: uploadedPhoto });
+
+    const result = await uploadComponentPhoto('component-1', payload);
+
+    expect(api.post).toHaveBeenCalledWith('/components/component-1/photos', payload);
+    expect(result).toEqual(uploadedPhoto);
   });
 });
