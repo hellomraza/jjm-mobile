@@ -1,17 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { ACCESS_TOKEN_KEY } from '../api/client';
+import type { LoginResponse } from '../api/responseTypes';
 
 export type LoginPayload = {
   email: string;
   password: string;
 };
 
-export type LoginResponse = {
-  access_token: string;
-};
-
-export async function loginRequest(payload: LoginPayload): Promise<LoginResponse> {
+export async function loginRequest(
+  payload: LoginPayload,
+): Promise<LoginResponse> {
   const response = await api.post<LoginResponse>('/auth/login', payload);
   return response.data;
 }
