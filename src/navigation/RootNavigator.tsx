@@ -1,6 +1,8 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoginScreen } from '../screens/LoginScreen';
+import { ComponentListScreen } from '../screens/ComponentListScreen';
+import { UploadPhotoScreen } from '../screens/UploadPhotoScreen';
 import { WorkItemDetailsScreen } from '../screens/WorkItemDetailsScreen';
 import { WorkItemListScreen } from '../screens/WorkItemListScreen';
 
@@ -10,6 +12,15 @@ export type RootStackParamList = {
   WorkItemDetails: {
     workItemId: string;
     title: string;
+  };
+  ComponentList: {
+    workItemId: string;
+    title: string;
+  };
+  UploadPhoto: {
+    workItemId: string;
+    componentId: string;
+    componentName: string;
   };
 };
 
@@ -41,6 +52,16 @@ export function RootNavigator() {
           name="WorkItemDetails"
           component={WorkItemDetailsScreen}
           options={{ title: 'Work Item Details' }}
+        />
+        <RootStack.Screen
+          name="ComponentList"
+          component={ComponentListScreen}
+          options={{ title: 'Components' }}
+        />
+        <RootStack.Screen
+          name="UploadPhoto"
+          component={UploadPhotoScreen}
+          options={{ title: 'Upload Photo' }}
         />
       </RootStack.Navigator>
     </NavigationContainer>
