@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlatList, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useWorkItems } from '../hooks/useWorkItems';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 
@@ -9,22 +10,11 @@ type WorkItemListNavigationProp = NativeStackNavigationProp<
   'WorkItemList'
 >;
 
-type WorkItemListItem = {
-  id: string;
-  title: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
-};
-
-const demoWorkItems: WorkItemListItem[] = [
-  { id: 'work-item-1', title: 'Install Pipeline — Block A', status: 'IN_PROGRESS' },
-  { id: 'work-item-2', title: 'Inspect Pump Station — Zone B', status: 'PENDING' },
-  { id: 'work-item-3', title: 'Valve Testing — Cluster C', status: 'COMPLETED' },
-];
-
 export function WorkItemListScreen() {
   const navigation = useNavigation<WorkItemListNavigationProp>();
+  const { data: workItems, isLoading, isError } = useWorkItems();
 
-  const renderItem = ({ item }: { item: WorkItemListItem }) => (
+  const renderItem = ({ item }: { item: NonNullable<typeof workItems>[number] }) => (
     <Pressable
       style={styles.card}
       testID={`work-item-card-${item.id}`}
@@ -47,12 +37,21 @@ export function WorkItemListScreen() {
         <Text style={styles.subtitle}>Select a work item to view details.</Text>
       </View>
 
-      <FlatList
-        data={demoWorkItems}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-      />
+      {isLoading ? <Text testID="work-items-loading-text">Loading work items...</Text> : null}
+      {isError ? <Text testID="work-items-error-text">Failed to load work items.</Text> : null}
+
+      {!isLoading && !isError && (workItems?.length ?? 0) === 0 ? (
+        <Text testID="work-items-empty-text">No work items found.</Text>
+      ) : null}
+
+      {!isLoading && !isError ? (
+        <FlatList
+          data={workItems ?? []}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
