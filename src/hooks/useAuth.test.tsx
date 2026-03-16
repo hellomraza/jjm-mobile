@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React, { useEffect } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import api from '../api/client';
 import {
@@ -41,8 +41,16 @@ describe('useAuth', () => {
     jest.clearAllMocks();
   });
 
+  const mockLoginUser = {
+    id: 'user-1',
+    email: 'employee@jjm.in',
+    role: 'EM',
+  } as const;
+
   it('calls login API through loginRequest', async () => {
-    (api.post as jest.Mock).mockResolvedValue({ data: { access_token: 'token-1' } });
+    (api.post as jest.Mock).mockResolvedValue({
+      data: { access_token: 'token-1', user: mockLoginUser },
+    });
 
     const result = await loginRequest({ email: 'a@b.com', password: 'secret' });
 
@@ -50,19 +58,24 @@ describe('useAuth', () => {
       email: 'a@b.com',
       password: 'secret',
     });
-    expect(result).toEqual({ access_token: 'token-1' });
+    expect(result).toEqual({ access_token: 'token-1', user: mockLoginUser });
   });
 
   it('persists and removes access token', async () => {
     await persistAccessToken('token-2');
     await removeAccessToken();
 
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith('access_token', 'token-2');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'access_token',
+      'token-2',
+    );
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('access_token');
   });
 
   it('stores token and invalidates auth query after login mutation', async () => {
-    (api.post as jest.Mock).mockResolvedValue({ data: { access_token: 'token-3' } });
+    (api.post as jest.Mock).mockResolvedValue({
+      data: { access_token: 'token-3', user: mockLoginUser },
+    });
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -93,7 +106,10 @@ describe('useAuth', () => {
       });
     });
 
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith('access_token', 'token-3');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'access_token',
+      'token-3',
+    );
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['authUser'] });
   });
 

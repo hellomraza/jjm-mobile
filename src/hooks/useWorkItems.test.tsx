@@ -1,12 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import api from '../api/client';
+import type { WorkItem } from './useWorkItems';
 import {
   fetchWorkItem,
   fetchWorkItems,
   WORK_ITEMS_QUERY_KEY,
   workItemQueryKey,
 } from './useWorkItems';
-import type { WorkItem } from './useWorkItems';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -24,24 +24,40 @@ jest.mock('../api/client', () => ({
 // ---------------------------------------------------------------------------
 
 const mockWorkItem: WorkItem = {
-  id: 1,
+  id: 'work-item-1',
+  work_code: 'WI-2026-0001',
   title: 'Install Pipeline — Block A',
   description: 'Install main water pipeline in Block A area.',
-  status: 'in_progress',
-  assignedTo: 'Ravi Kumar',
-  location: 'Block A, District 5',
-  createdAt: '2026-01-10T08:00:00Z',
-  updatedAt: '2026-03-10T12:00:00Z',
+  district_id: 'district-1',
+  block_id: 101,
+  panchayat_id: 201,
+  village_id: 301,
+  subdivision_id: 401,
+  circle_id: 501,
+  zone_id: 601,
+  schemetype: 'PWS',
+  nofhtc: '1250',
+  amount_approved: 1250000.5,
+  payment_amount: 450000.75,
+  serial_no: 1,
+  contractor_id: 'contractor-1',
+  latitude: 25.5941,
+  longitude: 85.1376,
+  progress_percentage: 35,
+  status: 'IN_PROGRESS',
+  created_at: '2026-01-10T08:00:00Z',
+  updated_at: '2026-03-10T12:00:00Z',
 };
 
 const mockWorkItems: WorkItem[] = [
   mockWorkItem,
   {
     ...mockWorkItem,
-    id: 2,
+    id: 'work-item-2',
+    work_code: 'WI-2026-0002',
     title: 'Inspect Pump Station — Zone B',
-    status: 'pending',
-    assignedTo: 'Priya Singh',
+    status: 'PENDING',
+    contractor_id: 'contractor-2',
   },
 ];
 
@@ -76,7 +92,15 @@ describe('useWorkItems', () => {
 
   // fetchWorkItems
   it('fetchWorkItems calls GET /work-items and returns data', async () => {
-    (api.get as jest.Mock).mockResolvedValue({ data: mockWorkItems });
+    (api.get as jest.Mock).mockResolvedValue({
+      data: {
+        data: mockWorkItems,
+        total: 2,
+        limit: 20,
+        page: 1,
+        totalPages: 1,
+      },
+    });
 
     const result = await fetchWorkItems();
 
@@ -96,7 +120,15 @@ describe('useWorkItems', () => {
 
   // useWorkItems hook — query key + queryFn integration
   it('useWorkItems query key fetches and caches work items list', async () => {
-    (api.get as jest.Mock).mockResolvedValue({ data: mockWorkItems });
+    (api.get as jest.Mock).mockResolvedValue({
+      data: {
+        data: mockWorkItems,
+        total: 2,
+        limit: 20,
+        page: 1,
+        totalPages: 1,
+      },
+    });
 
     const queryClient = makeQueryClient();
 
@@ -106,7 +138,9 @@ describe('useWorkItems', () => {
     });
 
     expect(api.get).toHaveBeenCalledWith('/work-items');
-    expect(queryClient.getQueryData(WORK_ITEMS_QUERY_KEY)).toEqual(mockWorkItems);
+    expect(queryClient.getQueryData(WORK_ITEMS_QUERY_KEY)).toEqual(
+      mockWorkItems,
+    );
   });
 
   // useWorkItem hook — query key + queryFn integration
@@ -114,14 +148,14 @@ describe('useWorkItems', () => {
     (api.get as jest.Mock).mockResolvedValue({ data: mockWorkItem });
 
     const queryClient = makeQueryClient();
-    const qKey = workItemQueryKey(1);
+    const qKey = workItemQueryKey('work-item-1');
 
     await queryClient.prefetchQuery({
       queryKey: qKey,
-      queryFn: () => fetchWorkItem(1),
+      queryFn: () => fetchWorkItem('work-item-1'),
     });
 
-    expect(api.get).toHaveBeenCalledWith('/work-items/1');
+    expect(api.get).toHaveBeenCalledWith('/work-items/work-item-1');
     expect(queryClient.getQueryData(qKey)).toEqual(mockWorkItem);
   });
 

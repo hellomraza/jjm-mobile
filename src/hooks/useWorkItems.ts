@@ -1,41 +1,32 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../api/client';
+import type {
+  GetWorkItemByIdResponse,
+  ListWorkItemsResponse,
+  WorkItemResponseDto,
+} from '../api/responseTypes';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type WorkItemStatus = 'pending' | 'in_progress' | 'completed' | 'rejected';
-
-export type WorkItem = {
-  id: number;
-  title: string;
-  description: string;
-  status: WorkItemStatus;
-  assignedTo: string;
-  location: string;
-  createdAt: string;
-  updatedAt: string;
-};
+export type WorkItem = WorkItemResponseDto;
 
 // ---------------------------------------------------------------------------
 // Query key constants
 // ---------------------------------------------------------------------------
 
 export const WORK_ITEMS_QUERY_KEY = ['workItems'] as const;
-export const workItemQueryKey = (id: number) => ['workItem', id] as const;
+export const workItemQueryKey = (id: string | number) =>
+  ['workItem', id] as const;
 
 // ---------------------------------------------------------------------------
 // API functions (exported for testability)
 // ---------------------------------------------------------------------------
 
 export async function fetchWorkItems(): Promise<WorkItem[]> {
-  const response = await api.get<WorkItem[]>('/work-items');
-  return response.data;
+  const response = await api.get<ListWorkItemsResponse>('/work-items');
+  return response.data.data;
 }
 
-export async function fetchWorkItem(id: number): Promise<WorkItem> {
-  const response = await api.get<WorkItem>(`/work-items/${id}`);
+export async function fetchWorkItem(id: string | number): Promise<WorkItem> {
+  const response = await api.get<GetWorkItemByIdResponse>(`/work-items/${id}`);
   return response.data;
 }
 
@@ -50,7 +41,7 @@ export function useWorkItems() {
   });
 }
 
-export function useWorkItem(id: number) {
+export function useWorkItem(id: string | number) {
   return useQuery({
     queryKey: workItemQueryKey(id),
     queryFn: () => fetchWorkItem(id),
