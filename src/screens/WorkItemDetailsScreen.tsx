@@ -1,11 +1,18 @@
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { PrimaryButton } from '../components/PrimaryButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 
 type WorkItemDetailsRouteProp = RouteProp<RootStackParamList, 'WorkItemDetails'>;
+type WorkItemDetailsNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'WorkItemDetails'
+>;
 
 export function WorkItemDetailsScreen() {
+  const navigation = useNavigation<WorkItemDetailsNavigationProp>();
   const route = useRoute<WorkItemDetailsRouteProp>();
   const { workItemId, title } = route.params;
 
@@ -14,6 +21,16 @@ export function WorkItemDetailsScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>Work Item ID: {workItemId}</Text>
+        <PrimaryButton
+          label="View Components"
+          onPress={() =>
+            navigation.navigate('ComponentList', {
+              workItemId,
+              title,
+            })
+          }
+          testID="view-components-button"
+        />
       </View>
     </SafeAreaView>
   );
