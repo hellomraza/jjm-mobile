@@ -1,11 +1,16 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoginScreen } from '../screens/LoginScreen';
+import { WorkItemDetailsScreen } from '../screens/WorkItemDetailsScreen';
 import { WorkItemListScreen } from '../screens/WorkItemListScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   WorkItemList: undefined;
+  WorkItemDetails: {
+    workItemId: string;
+    title: string;
+  };
 };
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -31,6 +36,11 @@ export function RootNavigator() {
           name="WorkItemList"
           component={WorkItemListScreen}
           options={{ title: 'Work Items' }}
+        />
+        <RootStack.Screen
+          name="WorkItemDetails"
+          component={WorkItemDetailsScreen}
+          options={{ title: 'Work Item Details' }}
         />
       </RootStack.Navigator>
     </NavigationContainer>
