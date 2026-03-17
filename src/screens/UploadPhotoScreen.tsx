@@ -1,13 +1,32 @@
-import { RouteProp, useRoute } from '@react-navigation/native';
+import {
+  RouteProp,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { PrimaryButton } from '../components/PrimaryButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 
 type UploadPhotoRouteProp = RouteProp<RootStackParamList, 'UploadPhoto'>;
+type UploadPhotoNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'UploadPhoto'
+>;
 
 export function UploadPhotoScreen() {
+  const navigation = useNavigation<UploadPhotoNavigationProp>();
   const route = useRoute<UploadPhotoRouteProp>();
-  const { componentName, componentId } = route.params;
+  const {
+    workItemId,
+    componentName,
+    componentId,
+    capturedPhotoPath,
+    capturedAt,
+    latitude,
+    longitude,
+  } = route.params;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -15,6 +34,37 @@ export function UploadPhotoScreen() {
         <Text style={styles.title}>Upload Photo</Text>
         <Text style={styles.subtitle}>{componentName}</Text>
         <Text style={styles.caption}>Component ID: {componentId}</Text>
+        {capturedPhotoPath ? (
+          <Text style={styles.caption} testID="upload-captured-photo-path">
+            Photo: {capturedPhotoPath}
+          </Text>
+        ) : (
+          <Text style={styles.caption} testID="upload-no-photo-text">
+            No photo captured yet.
+          </Text>
+        )}
+        {typeof latitude === 'number' && typeof longitude === 'number' ? (
+          <Text style={styles.caption} testID="upload-photo-location-text">
+            GPS: {latitude}, {longitude}
+          </Text>
+        ) : null}
+        {capturedAt ? (
+          <Text style={styles.caption} testID="upload-photo-time-text">
+            Captured at: {capturedAt}
+          </Text>
+        ) : null}
+
+        <PrimaryButton
+          label="Open Camera"
+          onPress={() =>
+            navigation.navigate('Camera', {
+              workItemId,
+              componentId,
+              componentName,
+            })
+          }
+          testID="upload-open-camera-button"
+        />
       </View>
     </SafeAreaView>
   );
