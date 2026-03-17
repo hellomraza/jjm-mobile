@@ -1,5 +1,6 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
+import { componentsQueryKey } from './useComponents';
 import type {
   GetComponentPhotosResponse,
   PhotoResponseDto,
@@ -42,9 +43,25 @@ export function useComponentPhotos(componentId: string) {
   });
 }
 
-export function useUploadPhotoMutation(componentId: string) {
+export function invalidatePhotoUploadQueries(
+  queryClient: QueryClient,
+  workItemId: string,
+  componentId: string,
+) {
+  queryClient.invalidateQueries({ queryKey: componentsQueryKey(workItemId) });
+  queryClient.invalidateQueries({
+    queryKey: componentPhotosQueryKey(componentId),
+  });
+}
+
+export function useUploadPhotoMutation(workItemId: string, componentId: string) {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (payload: UploadPhotoPayload) =>
       uploadComponentPhoto(componentId, payload),
+    onSuccess: () => {
+      invalidatePhotoUploadQueries(queryClient, workItemId, componentId);
+    },
   });
 }

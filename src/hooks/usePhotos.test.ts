@@ -4,8 +4,10 @@ import type { ComponentPhoto } from './usePhotos';
 import {
   componentPhotosQueryKey,
   fetchComponentPhotos,
+  invalidatePhotoUploadQueries,
   uploadComponentPhoto,
 } from './usePhotos';
+import { componentsQueryKey } from './useComponents';
 
 jest.mock('../api/client', () => ({
   __esModule: true,
@@ -137,5 +139,20 @@ describe('usePhotos', () => {
 
     expect(api.post).toHaveBeenCalledWith('/components/component-1/photos', payload);
     expect(result).toEqual(uploadedPhoto);
+  });
+
+  it('invalidatePhotoUploadQueries invalidates components and componentPhotos query keys', () => {
+    const queryClient = makeQueryClient();
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+
+    invalidatePhotoUploadQueries(queryClient, 'work-item-1', 'component-1');
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: componentsQueryKey('work-item-1'),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: componentPhotosQueryKey('component-1'),
+    });
+    expect(invalidateSpy).toHaveBeenCalledTimes(2);
   });
 });
