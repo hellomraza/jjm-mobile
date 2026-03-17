@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoginScreen } from '../screens/LoginScreen';
+import { CameraScreen } from '../screens/CameraScreen';
 import { ComponentListScreen } from '../screens/ComponentListScreen';
 import { UploadPhotoScreen } from '../screens/UploadPhotoScreen';
 import { WorkItemDetailsScreen } from '../screens/WorkItemDetailsScreen';
@@ -18,6 +19,15 @@ export type RootStackParamList = {
     title: string;
   };
   UploadPhoto: {
+    workItemId: string;
+    componentId: string;
+    componentName: string;
+    capturedPhotoPath?: string;
+    capturedAt?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  Camera: {
     workItemId: string;
     componentId: string;
     componentName: string;
@@ -62,6 +72,11 @@ export function RootNavigator() {
           name="UploadPhoto"
           component={UploadPhotoScreen}
           options={{ title: 'Upload Photo' }}
+        />
+        <RootStack.Screen
+          name="Camera"
+          component={CameraScreen}
+          options={{ title: 'Capture Photo' }}
         />
       </RootStack.Navigator>
     </NavigationContainer>
