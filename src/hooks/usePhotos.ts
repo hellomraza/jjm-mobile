@@ -30,6 +30,11 @@ export async function uploadComponentPhoto(
   const response = await api.post<UploadComponentPhotoResponse>(
     `/components/${componentId}/photos`,
     payload,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    },
   );
 
   return response.data;
