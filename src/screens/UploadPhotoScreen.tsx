@@ -2,6 +2,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { useUploadPhotoMutation } from '../hooks/usePhotos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 
@@ -33,6 +35,56 @@ export function UploadPhotoScreen() {
   } = route.params;
 
   const [progress, setProgress] = useState('');
+  const mutation = useUploadPhotoMutation(workItemId, componentId);
+
+  const handleSubmit = () => {
+    const progressValue = parseFloat(progress);
+
+    if (!capturedPhotoPath) {
+      Alert.alert('No Photo', 'Please capture a photo before submitting.');
+      return;
+    }
+
+    if (isNaN(progressValue) || progressValue < 0) {
+      Alert.alert('Invalid Progress', 'Please enter a valid progress value.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: capturedPhotoPath,
+      type: 'image/jpeg',
+      name: 'photo.jpg',
+    } as unknown as Blob);
+    formData.append('progress', String(progressValue));
+    formData.append('latitude', String(latitude ?? 0));
+    formData.append('longitude', String(longitude ?? 0));
+    formData.append('timestamp', capturedAt ?? new Date().toISOString());
+
+    mutation.mutate(formData as unknown as Record<string, unknown>);
+  };
+
+  if (mutation.isSuccess) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={[styles.scrollContent, styles.centeredContainer]}>
+          <View style={styles.card}>
+            <Text style={styles.title} testID="upload-success-text">
+              Photo Uploaded!
+            </Text>
+            <Text style={styles.caption}>
+              Your photo has been submitted successfully.
+            </Text>
+            <PrimaryButton
+              label="Done"
+              onPress={() => navigation.goBack()}
+              testID="upload-done-button"
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -73,9 +125,16 @@ export function UploadPhotoScreen() {
             testID="upload-progress-input"
           />
 
+          {mutation.isError ? (
+            <Text style={styles.errorText} testID="upload-error-text">
+              Upload failed. Please try again.
+            </Text>
+          ) : null}
+
           <PrimaryButton
-            label="Submit Photo"
-            onPress={() => {}}
+            label={mutation.isPending ? 'Uploading...' : 'Submit Photo'}
+            onPress={handleSubmit}
+            disabled={mutation.isPending}
             testID="upload-submit-button"
           />
 
@@ -143,5 +202,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
     marginBottom: 8,
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
 });
