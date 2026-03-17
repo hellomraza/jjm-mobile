@@ -1,6 +1,7 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
+import Geolocation from '@react-native-community/geolocation';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -35,7 +36,34 @@ export function UploadPhotoScreen() {
   } = route.params;
 
   const [progress, setProgress] = useState('');
+  const [deviceLocation, setDeviceLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
   const mutation = useUploadPhotoMutation(workItemId, componentId);
+
+  useEffect(() => {
+    if (typeof latitude === 'number' && typeof longitude === 'number') {
+      return;
+    }
+    Geolocation.getCurrentPosition(
+      position => {
+        setDeviceLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      _error => {
+        setLocationError('Unable to get device location.');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+    );
+  }, [latitude, longitude]);
+
+  const resolvedLatitude = typeof latitude === 'number' ? latitude : deviceLocation?.latitude;
+  const resolvedLongitude = typeof longitude === 'number' ? longitude : deviceLocation?.longitude;
 
   const handleSubmit = () => {
     const progressValue = parseFloat(progress);
@@ -57,8 +85,8 @@ export function UploadPhotoScreen() {
       name: 'photo.jpg',
     } as unknown as Blob);
     formData.append('progress', String(progressValue));
-    formData.append('latitude', String(latitude ?? 0));
-    formData.append('longitude', String(longitude ?? 0));
+    formData.append('latitude', String(resolvedLatitude ?? 0));
+    formData.append('longitude', String(resolvedLongitude ?? 0));
     formData.append('timestamp', capturedAt ?? new Date().toISOString());
 
     mutation.mutate(formData as unknown as Record<string, unknown>);
@@ -103,11 +131,20 @@ export function UploadPhotoScreen() {
             </Text>
           )}
 
-          {typeof latitude === 'number' && typeof longitude === 'number' ? (
+          {typeof resolvedLatitude === 'number' &&
+          typeof resolvedLongitude === 'number' ? (
             <Text style={styles.caption} testID="upload-photo-location-text">
-              GPS: {latitude.toFixed(4)}, {longitude.toFixed(4)}
+              GPS: {resolvedLatitude.toFixed(4)}, {resolvedLongitude.toFixed(4)}
             </Text>
-          ) : null}
+          ) : locationError ? (
+            <Text style={styles.captionError} testID="upload-location-error-text">
+              {locationError}
+            </Text>
+          ) : (
+            <Text style={styles.caption} testID="upload-location-loading-text">
+              Getting location...
+            </Text>
+          )}
 
           {capturedAt ? (
             <Text style={styles.caption} testID="upload-photo-time-text">
@@ -184,6 +221,11 @@ const styles = StyleSheet.create({
   caption: {
     fontSize: 14,
     color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  captionError: {
+    fontSize: 14,
+    color: colors.danger,
     marginBottom: 4,
   },
   label: {

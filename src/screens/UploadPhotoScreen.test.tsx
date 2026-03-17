@@ -6,6 +6,15 @@ const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockMutate = jest.fn();
 const mockUseUploadPhotoMutation = jest.fn();
+const mockGetCurrentPosition = jest.fn();
+
+jest.mock('@react-native-community/geolocation', () => ({
+  getCurrentPosition: (
+    success: (pos: object) => void,
+    error: (err: object) => void,
+    options: object,
+  ) => mockGetCurrentPosition(success, error, options),
+}));
 
 let mockRouteParams = {
   workItemId: 'work-item-1',
@@ -36,6 +45,10 @@ jest.mock('../hooks/usePhotos', () => ({
 describe('UploadPhotoScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // By default, geolocation resolves immediately with a position
+    mockGetCurrentPosition.mockImplementation((success: (pos: object) => void) =>
+      success({ coords: { latitude: 28.6139, longitude: 77.209 } }),
+    );
     mockRouteParams = {
       workItemId: 'work-item-1',
       componentId: 'component-1',
@@ -62,6 +75,38 @@ describe('UploadPhotoScreen', () => {
 
     return renderer!.root;
   }
+
+  it('fetches device location when route params have no gps coordinates', async () => {
+    mockRouteParams = {
+      ...mockRouteParams,
+      latitude: undefined as unknown as number,
+      longitude: undefined as unknown as number,
+    };
+
+    const root = await renderScreen();
+
+    expect(
+      root.findByProps({ testID: 'upload-photo-location-text' }).props.children,
+    ).toContain('28.6139');
+  });
+
+  it('shows location error when device geolocation fails', async () => {
+    mockRouteParams = {
+      ...mockRouteParams,
+      latitude: undefined as unknown as number,
+      longitude: undefined as unknown as number,
+    };
+    mockGetCurrentPosition.mockImplementation(
+      (_success: unknown, error: (err: object) => void) =>
+        error({ code: 1, message: 'Permission denied' }),
+    );
+
+    const root = await renderScreen();
+
+    expect(
+      root.findByProps({ testID: 'upload-location-error-text' }),
+    ).toBeTruthy();
+  });
 
   it('shows captured photo path, gps and captured time when photo is present', async () => {
     const root = await renderScreen();
