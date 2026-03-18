@@ -118,7 +118,7 @@ export function CameraScreen() {
 
   if (!hasPermission) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.container}>
         <View style={styles.permissionContainer}>
           <Text style={styles.title}>Camera Permission Required</Text>
           <Text style={styles.caption}>
@@ -146,7 +146,7 @@ export function CameraScreen() {
 
   if (!device) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.container}>
         <View style={styles.permissionContainer}>
           <Text style={styles.title}>Camera Unavailable</Text>
           <Text style={styles.caption}>
@@ -163,7 +163,7 @@ export function CameraScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.previewContainer}>
         <Camera
           ref={cameraRef}

@@ -1,17 +1,11 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useComponents } from '../hooks/useComponents';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ComponentListRouteProp = RouteProp<RootStackParamList, 'ComponentList'>;
 type ComponentListNavigationProp = NativeStackNavigationProp<
@@ -65,7 +59,7 @@ export function ComponentListScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Components</Text>
         <Text style={styles.subtitle}>{title}</Text>
@@ -124,10 +118,13 @@ const styles = StyleSheet.create({
   row: {
     backgroundColor: colors.white,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.divider,
     padding: spacing.md,
     marginBottom: spacing.xs,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   rowHeader: {
     flexDirection: 'row',

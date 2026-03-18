@@ -21,7 +21,7 @@ export function LoginScreen() {
   const { loginMutation } = useAuth();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.card}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Login</Text>

@@ -50,7 +50,7 @@ export function WorkItemListScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.headerContainer}>
         <View style={styles.headerRow}>
           <Text style={styles.employeeName} testID="work-items-employee-name">
@@ -167,8 +167,6 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     borderRadius: radius.md,
-    // borderWidth: 1,
-    borderColor: colors.divider,
     padding: spacing.md,
     marginBottom: spacing.xs,
     shadowColor: colors.text,

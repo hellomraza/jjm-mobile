@@ -69,7 +69,7 @@ export function WorkItemDetailsScreen() {
 
   if (isWorkItemLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.container}>
         <Text testID="work-item-details-loading-text">
           Loading work details...
         </Text>
@@ -79,7 +79,7 @@ export function WorkItemDetailsScreen() {
 
   if (isWorkItemError || !workItem) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top']}style={styles.container}>
         <Text testID="work-item-details-error-text">
           Failed to load work details.
         </Text>
@@ -88,7 +88,7 @@ export function WorkItemDetailsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <Text style={styles.title}>{workItem.title || title}</Text>

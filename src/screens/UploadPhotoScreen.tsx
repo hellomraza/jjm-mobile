@@ -102,7 +102,7 @@ export function UploadPhotoScreen() {
 
   if (mutation.isSuccess) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.container}>
         <View style={[styles.scrollContent, styles.centeredContainer]}>
           <View style={styles.card}>
             <Text style={styles.title} testID="upload-success-text">
@@ -123,7 +123,7 @@ export function UploadPhotoScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <Text style={styles.title}>Upload Photo</Text>
