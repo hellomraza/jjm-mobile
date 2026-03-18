@@ -130,6 +130,10 @@ describe('WorkItemListScreen', () => {
     const root = await renderScreen();
 
     await act(async () => {
+      root.findByProps({ testID: 'work-items-menu-button' }).props.onPress();
+    });
+
+    await act(async () => {
       await root
         .findByProps({ testID: 'work-items-logout-button' })
         .props.onPress();
@@ -137,5 +141,20 @@ describe('WorkItemListScreen', () => {
 
     expect(mockLogout).toHaveBeenCalledTimes(1);
     expect(mockReplace).toHaveBeenCalledWith('Login');
+  });
+
+  it('shows employee name in header', async () => {
+    mockUseWorkItems.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+
+    const root = await renderScreen();
+    const employeeName = root.findByProps({
+      testID: 'work-items-employee-name',
+    });
+
+    expect(employeeName.props.children).toBe('Employee Name');
   });
 });
