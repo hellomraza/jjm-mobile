@@ -3,7 +3,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   FlatList,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -12,6 +11,7 @@ import { useComponents } from '../hooks/useComponents';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ComponentListRouteProp = RouteProp<RootStackParamList, 'ComponentList'>;
 type ComponentListNavigationProp = NativeStackNavigationProp<

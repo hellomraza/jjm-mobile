@@ -1,7 +1,7 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useRef, useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import {
   Camera,
   type PhotoFile,
@@ -12,6 +12,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type CameraRouteProp = RouteProp<RootStackParamList, 'Camera'>;
 type CameraNavigationProp = NativeStackNavigationProp<

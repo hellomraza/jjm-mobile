@@ -4,7 +4,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import { useUploadPhotoMutation } from '../hooks/usePhotos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type UploadPhotoRouteProp = RouteProp<RootStackParamList, 'UploadPhoto'>;
 type UploadPhotoNavigationProp = NativeStackNavigationProp<
