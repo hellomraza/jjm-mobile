@@ -4,9 +4,13 @@ import React, { useEffect } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import api from '../api/client';
 import {
+  AUTH_USER_KEY,
+  getPersistedAuthUser,
   loginRequest,
   persistAccessToken,
+  persistAuthUser,
   removeAccessToken,
+  removePersistedAuthUser,
   useAuth,
 } from './useAuth';
 
@@ -72,6 +76,29 @@ describe('useAuth', () => {
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('access_token');
   });
 
+  it('persists and reads/removes auth user', async () => {
+    const authUser = {
+      id: 'user-1',
+      email: 'employee@jjm.in',
+      role: 'EM',
+    } as const;
+
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify(authUser),
+    );
+
+    await persistAuthUser(authUser);
+    const user = await getPersistedAuthUser();
+    await removePersistedAuthUser();
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      AUTH_USER_KEY,
+      JSON.stringify(authUser),
+    );
+    expect(user).toEqual(authUser);
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(AUTH_USER_KEY);
+  });
+
   it('stores token and invalidates auth query after login mutation', async () => {
     (api.post as jest.Mock).mockResolvedValue({
       data: { access_token: 'token-3', user: mockLoginUser },
@@ -110,6 +137,10 @@ describe('useAuth', () => {
       'access_token',
       'token-3',
     );
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      AUTH_USER_KEY,
+      JSON.stringify(mockLoginUser),
+    );
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['authUser'] });
   });
 
@@ -141,6 +172,7 @@ describe('useAuth', () => {
     });
 
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('access_token');
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(AUTH_USER_KEY);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['authUser'] });
   });
 });
