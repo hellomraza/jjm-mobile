@@ -9,6 +9,7 @@ import { getPersistedAuthUser } from './useAuth';
 export type UserProfile = UserResponseDto;
 
 export const AUTH_USER_QUERY_KEY = ['authUser'] as const;
+export const userQueryKey = (id: string) => ['user', id] as const;
 
 export async function fetchUserProfileById(id: string): Promise<UserProfile> {
   const response = await api.get<GetUserByIdResponse>(`/users/${id}`);
@@ -28,5 +29,13 @@ export function useUser() {
   return useQuery({
     queryKey: AUTH_USER_QUERY_KEY,
     queryFn: fetchAuthUserProfile,
+  });
+}
+
+export function useUserById(id?: string) {
+  return useQuery({
+    queryKey: userQueryKey(id ?? ''),
+    queryFn: () => fetchUserProfileById(id ?? ''),
+    enabled: !!id,
   });
 }

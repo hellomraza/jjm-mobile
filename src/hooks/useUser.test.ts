@@ -5,6 +5,7 @@ import {
   AUTH_USER_QUERY_KEY,
   fetchAuthUserProfile,
   fetchUserProfileById,
+  userQueryKey,
 } from './useUser';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -38,6 +39,7 @@ describe('useUser', () => {
 
   it('exports auth user query key', () => {
     expect(AUTH_USER_QUERY_KEY).toEqual(['authUser']);
+    expect(userQueryKey('user-1')).toEqual(['user', 'user-1']);
   });
 
   it('fetchUserProfileById calls GET /users/:id', async () => {
