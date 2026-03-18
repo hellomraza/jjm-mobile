@@ -11,6 +11,7 @@ import {
 import { useComponents } from '../hooks/useComponents';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
+import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 
 type ComponentListRouteProp = RouteProp<RootStackParamList, 'ComponentList'>;
 type ComponentListNavigationProp = NativeStackNavigationProp<
@@ -32,7 +33,11 @@ export function ComponentListScreen() {
   const { workItemId, title } = route.params;
   const { data: components, isLoading, isError } = useComponents(workItemId);
 
-  const renderItem = ({ item }: { item: NonNullable<typeof components>[number] }) => (
+  const renderItem = ({
+    item,
+  }: {
+    item: NonNullable<typeof components>[number];
+  }) => (
     <Pressable
       style={styles.row}
       testID={`component-row-${item.id}`}
@@ -67,8 +72,12 @@ export function ComponentListScreen() {
         <Text style={styles.caption}>Work Item ID: {workItemId}</Text>
       </View>
 
-      {isLoading ? <Text testID="components-loading-text">Loading components...</Text> : null}
-      {isError ? <Text testID="components-error-text">Failed to load components.</Text> : null}
+      {isLoading ? (
+        <Text testID="components-loading-text">Loading components...</Text>
+      ) : null}
+      {isError ? (
+        <Text testID="components-error-text">Failed to load components.</Text>
+      ) : null}
       {!isLoading && !isError && (components?.length ?? 0) === 0 ? (
         <Text testID="components-empty-text">No components found.</Text>
       ) : null}
@@ -89,57 +98,57 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondaryBackground,
-    padding: 16,
+    padding: spacing.md,
   },
   headerContainer: {
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   title: {
-    fontSize: 22,
+    fontSize: fontSize.xl,
     color: colors.primary,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: fontSize.md,
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: spacing.xxs,
   },
   caption: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     color: colors.textPrimary,
   },
   listContent: {
-    paddingBottom: 20,
+    paddingBottom: spacing.lg,
   },
   row: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.divider,
-    padding: 16,
-    marginBottom: 10,
+    padding: spacing.md,
+    marginBottom: spacing.xs,
   },
   rowHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: spacing.xs,
   },
   componentName: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
-    marginRight: 8,
+    marginRight: spacing.xs,
   },
   status: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
     color: colors.primary,
   },
   meta: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     color: colors.textPrimary,
   },
 });

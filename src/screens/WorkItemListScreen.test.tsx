@@ -3,11 +3,19 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { WorkItemListScreen } from './WorkItemListScreen';
 
 const mockNavigate = jest.fn();
+const mockReplace = jest.fn();
+const mockLogout = jest.fn();
 const mockUseWorkItems = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({ navigate: mockNavigate, replace: mockReplace }),
+}));
+
+jest.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({
+    logout: mockLogout,
+  }),
 }));
 
 jest.mock('../hooks/useWorkItems', () => ({
@@ -17,6 +25,7 @@ jest.mock('../hooks/useWorkItems', () => ({
 describe('WorkItemListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLogout.mockResolvedValue(undefined);
   });
 
   async function renderScreen() {
@@ -37,7 +46,9 @@ describe('WorkItemListScreen', () => {
     });
 
     const root = await renderScreen();
-    expect(root.findByProps({ testID: 'work-items-loading-text' })).toBeTruthy();
+    expect(
+      root.findByProps({ testID: 'work-items-loading-text' }),
+    ).toBeTruthy();
   });
 
   it('shows error state', async () => {
@@ -98,12 +109,33 @@ describe('WorkItemListScreen', () => {
     const root = await renderScreen();
 
     act(() => {
-      root.findByProps({ testID: 'work-item-card-work-item-1' }).props.onPress();
+      root
+        .findByProps({ testID: 'work-item-card-work-item-1' })
+        .props.onPress();
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('WorkItemDetails', {
       workItemId: 'work-item-1',
       title: 'Install Pipeline — Block A',
     });
+  });
+
+  it('logs out and navigates to login on logout press', async () => {
+    mockUseWorkItems.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+
+    const root = await renderScreen();
+
+    await act(async () => {
+      await root
+        .findByProps({ testID: 'work-items-logout-button' })
+        .props.onPress();
+    });
+
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('Login');
   });
 });

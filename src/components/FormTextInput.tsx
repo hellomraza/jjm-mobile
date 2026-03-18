@@ -6,6 +6,7 @@ import {
   View,
 } from 'react-native';
 import { colors } from '../theme/colors';
+import { fontSize, radius, spacing } from '../theme/designSystem';
 
 type FormTextInputProps = {
   label: string;
@@ -49,27 +50,27 @@ export function FormTextInput({
 
 const styles = StyleSheet.create({
   label: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     color: colors.textPrimary,
-    marginBottom: 8,
-    marginTop: 8,
+    marginBottom: spacing.xs,
+    marginTop: spacing.xs,
   },
   input: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.white,
-    fontSize: 16,
+    fontSize: fontSize.md,
     color: colors.textPrimary,
   },
   inputError: {
     borderColor: colors.danger,
   },
   errorText: {
-    marginTop: 8,
+    marginTop: spacing.xs,
     color: colors.danger,
-    fontSize: 14,
+    fontSize: fontSize.sm,
   },
 });

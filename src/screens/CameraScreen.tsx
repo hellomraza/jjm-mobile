@@ -1,12 +1,7 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import {
   Camera,
   type PhotoFile,
@@ -16,6 +11,7 @@ import {
 import { PrimaryButton } from '../components/PrimaryButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
+import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 
 type CameraRouteProp = RouteProp<RootStackParamList, 'Camera'>;
 type CameraNavigationProp = NativeStackNavigationProp<
@@ -180,7 +176,9 @@ export function CameraScreen() {
       <View style={styles.infoContainer}>
         <Text style={styles.infoText}>
           GPS metadata:{' '}
-          {hasLocationPermission ? 'enabled' : 'location permission not granted'}
+          {hasLocationPermission
+            ? 'enabled'
+            : 'location permission not granted'}
         </Text>
         {errorMessage ? (
           <Text style={styles.errorText} testID="camera-error-text">
@@ -212,48 +210,48 @@ const styles = StyleSheet.create({
   },
   permissionContainer: {
     flex: 1,
-    padding: 20,
+    padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
     color: colors.primary,
-    marginBottom: 8,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   caption: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     color: colors.textPrimary,
     textAlign: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
   },
   previewContainer: {
     flex: 1,
-    margin: 16,
-    borderRadius: 12,
+    margin: spacing.md,
+    borderRadius: radius.md,
     overflow: 'hidden',
   },
   camera: {
     flex: 1,
   },
   infoContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
   },
   infoText: {
     color: colors.textPrimary,
-    fontSize: 14,
+    fontSize: fontSize.sm,
   },
   controls: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
   },
   errorText: {
     color: colors.danger,
-    fontSize: 14,
-    marginTop: 8,
+    fontSize: fontSize.sm,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
 });

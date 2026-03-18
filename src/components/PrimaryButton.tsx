@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors } from '../theme/colors';
+import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 
 type PrimaryButtonProps = {
   label: string;
@@ -33,10 +34,10 @@ export function PrimaryButton({
 
 const styles = StyleSheet.create({
   button: {
-    marginTop: 16,
+    marginTop: spacing.md,
     backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   buttonDisabled: {
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: colors.textOnPrimary,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
   },
 });

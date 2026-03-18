@@ -53,8 +53,14 @@ describe('LoginScreen', () => {
     });
 
     await act(async () => {
-      emailInput.props.onBlur();
-      passwordInput.props.onBlur();
+      emailInput.props.onBlur({
+        persist: jest.fn(),
+        target: { name: 'email' },
+      });
+      passwordInput.props.onBlur({
+        persist: jest.fn(),
+        target: { name: 'password' },
+      });
     });
 
     await act(async () => {

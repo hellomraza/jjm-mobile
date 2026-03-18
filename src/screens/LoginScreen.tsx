@@ -8,6 +8,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { useAuth } from '../hooks/useAuth';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
+import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 import { loginValidationSchema } from '../validation/loginValidationSchema';
 
 type LoginNavigationProp = NativeStackNavigationProp<
@@ -22,8 +23,7 @@ export function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>JJM Employee Login</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
+        <Text style={styles.title}>Login</Text>
         <Formik
           initialValues={{
             email: '',
@@ -121,31 +121,25 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.secondaryBackground,
-    padding: 16,
+    backgroundColor: colors.primary,
+    padding: spacing.md,
     justifyContent: 'center',
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.divider,
-    padding: 16,
+    padding: spacing.md,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginBottom: 16,
+    fontSize: fontSize.xxxl,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing.xs,
   },
   errorText: {
-    marginTop: 12,
+    marginTop: spacing.sm,
     color: colors.danger,
-    fontSize: 14,
+    fontSize: fontSize.sm,
   },
 });

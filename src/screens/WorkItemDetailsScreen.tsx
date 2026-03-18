@@ -4,8 +4,12 @@ import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { PrimaryButton } from '../components/PrimaryButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
+import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 
-type WorkItemDetailsRouteProp = RouteProp<RootStackParamList, 'WorkItemDetails'>;
+type WorkItemDetailsRouteProp = RouteProp<
+  RootStackParamList,
+  'WorkItemDetails'
+>;
 type WorkItemDetailsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'WorkItemDetails'
@@ -40,23 +44,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondaryBackground,
-    padding: 16,
+    padding: spacing.md,
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.divider,
-    padding: 16,
+    padding: spacing.md,
   },
   title: {
-    fontSize: 22,
+    fontSize: fontSize.xl,
     color: colors.primary,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: fontSize.md,
     color: colors.textPrimary,
   },
 });

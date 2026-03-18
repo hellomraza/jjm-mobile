@@ -80,43 +80,20 @@ export function RootNavigator() {
     <NavigationContainer>
       <RootStack.Navigator
         initialRouteName={hasStoredToken ? 'WorkItemList' : 'Login'}
-        screenOptions={{
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#126EB6',
-          headerShadowVisible: false,
-          contentStyle: { backgroundColor: '#FFFFFF' },
-        }}
+        screenOptions={{ headerShown: false }}
       >
-        <RootStack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ title: 'JJM Employee' }}
-        />
-        <RootStack.Screen
-          name="WorkItemList"
-          component={WorkItemListScreen}
-          options={{ title: 'Work Items' }}
-        />
+        <RootStack.Screen name="Login" component={LoginScreen} />
+        <RootStack.Screen name="WorkItemList" component={WorkItemListScreen} />
         <RootStack.Screen
           name="WorkItemDetails"
           component={WorkItemDetailsScreen}
-          options={{ title: 'Work Item Details' }}
         />
         <RootStack.Screen
           name="ComponentList"
           component={ComponentListScreen}
-          options={{ title: 'Components' }}
         />
-        <RootStack.Screen
-          name="UploadPhoto"
-          component={UploadPhotoScreen}
-          options={{ title: 'Upload Photo' }}
-        />
-        <RootStack.Screen
-          name="Camera"
-          component={CameraScreen}
-          options={{ title: 'Capture Photo' }}
-        />
+        <RootStack.Screen name="UploadPhoto" component={UploadPhotoScreen} />
+        <RootStack.Screen name="Camera" component={CameraScreen} />
       </RootStack.Navigator>
     </NavigationContainer>
   );
