@@ -48,18 +48,20 @@ export function UploadPhotoScreen() {
     if (typeof latitude === 'number' && typeof longitude === 'number') {
       return;
     }
-    Geolocation.getCurrentPosition(
-      position => {
-        setDeviceLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      _error => {
-        setLocationError('Unable to get device location.');
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
-    );
+    Geolocation.requestAuthorization(() => {
+      Geolocation.getCurrentPosition(
+        position => {
+          setDeviceLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        _error => {
+          setLocationError('Unable to get device location.');
+        },
+        { enableHighAccuracy: true },
+      );
+    });
   }, [latitude, longitude]);
 
   const resolvedLatitude = typeof latitude === 'number' ? latitude : deviceLocation?.latitude;
