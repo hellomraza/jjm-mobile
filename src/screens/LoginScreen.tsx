@@ -23,7 +23,13 @@ export function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>Login</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Login</Text>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle} />
+            <Text style={styles.missionText}>Jal Jeevan Mission</Text>
+          </View>
+        </View>
         <Formik
           initialValues={{
             email: '',
@@ -93,13 +99,13 @@ export function LoginScreen() {
                   errorMessage={passwordError}
                   testID="login-password-input"
                 />
-                <View style={{ alignSelf: 'flex-start' }}>
+                <View style={styles.buttonContainer}>
                   <PrimaryButton
                     label="Login"
                     onPress={handleSubmit}
                     loading={isSubmitting || loginMutation.isPending}
                     testID="login-submit-button"
-                    customStyles={{ paddingHorizontal: spacing.xxxl }}
+                    customStyles={styles.loginButton}
                   />
                 </View>
 
@@ -129,15 +135,41 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.divider,
     padding: spacing.xl,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: spacing.lg,
+  },
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logoCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    marginBottom: spacing.xs,
+  },
+  missionText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
   title: {
     fontSize: fontSize.xxl,
     fontWeight: fontWeight.bold,
     marginBottom: spacing.xs,
+  },
+  buttonContainer: {
+    alignSelf: 'flex-start',
+  },
+  loginButton: {
+    paddingHorizontal: spacing.xxxl,
   },
   errorText: {
     marginTop: spacing.sm,
