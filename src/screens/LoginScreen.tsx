@@ -70,7 +70,7 @@ export function LoginScreen() {
             const submitError = typeof status === 'string' ? status : '';
 
             return (
-              <>
+              <View>
                 <FormTextInput
                   label="Email"
                   value={values.email}
@@ -93,13 +93,15 @@ export function LoginScreen() {
                   errorMessage={passwordError}
                   testID="login-password-input"
                 />
-
-                <PrimaryButton
-                  label="Login"
-                  onPress={handleSubmit}
-                  loading={isSubmitting || loginMutation.isPending}
-                  testID="login-submit-button"
-                />
+                <View style={{ alignSelf: 'flex-start' }}>
+                  <PrimaryButton
+                    label="Login"
+                    onPress={handleSubmit}
+                    loading={isSubmitting || loginMutation.isPending}
+                    testID="login-submit-button"
+                    customStyles={{ paddingHorizontal: spacing.xxxl }}
+                  />
+                </View>
 
                 {submitError ? (
                   <Text
@@ -109,7 +111,7 @@ export function LoginScreen() {
                     {submitError}
                   </Text>
                 ) : null}
-              </>
+              </View>
             );
           }}
         </Formik>
@@ -130,10 +132,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.divider,
-    padding: spacing.md,
+    padding: spacing.xl,
   },
   title: {
-    fontSize: fontSize.xxxl,
+    fontSize: fontSize.xxl,
     fontWeight: fontWeight.bold,
     marginBottom: spacing.xs,
   },

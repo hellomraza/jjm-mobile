@@ -1,4 +1,10 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import {
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  ViewStyle,
+} from 'react-native';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 
@@ -8,6 +14,7 @@ type PrimaryButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   testID: string;
+  customStyles?: StyleProp<ViewStyle>;
 };
 
 export function PrimaryButton({
@@ -16,12 +23,14 @@ export function PrimaryButton({
   disabled = false,
   loading = false,
   testID,
+  customStyles,
 }: PrimaryButtonProps) {
   return (
     <Pressable
       style={[
         styles.button,
         disabled || loading ? styles.buttonDisabled : undefined,
+        customStyles,
       ]}
       onPress={onPress}
       disabled={disabled || loading}
@@ -45,7 +54,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: colors.textOnPrimary,
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
   },
 });
