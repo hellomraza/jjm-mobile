@@ -6,6 +6,7 @@ const mockNavigate = jest.fn();
 const mockReplace = jest.fn();
 const mockLogout = jest.fn();
 const mockUseWorkItems = jest.fn();
+const mockUseUser = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -22,10 +23,15 @@ jest.mock('../hooks/useWorkItems', () => ({
   useWorkItems: () => mockUseWorkItems(),
 }));
 
+jest.mock('../hooks/useUser', () => ({
+  useUser: () => mockUseUser(),
+}));
+
 describe('WorkItemListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLogout.mockResolvedValue(undefined);
+    mockUseUser.mockReturnValue({ data: null });
   });
 
   async function renderScreen() {
@@ -149,12 +155,24 @@ describe('WorkItemListScreen', () => {
       isLoading: false,
       isError: false,
     });
+    mockUseUser.mockReturnValue({
+      data: {
+        id: 'user-1',
+        code: 'EMP001',
+        email: 'employee@jjm.in',
+        name: 'Raza Employee',
+        role: 'EM',
+        district_id: null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-02T00:00:00Z',
+      },
+    });
 
     const root = await renderScreen();
     const employeeName = root.findByProps({
       testID: 'work-items-employee-name',
     });
 
-    expect(employeeName.props.children).toBe('Employee Name');
+    expect(employeeName.props.children).toBe('Raza Employee');
   });
 });

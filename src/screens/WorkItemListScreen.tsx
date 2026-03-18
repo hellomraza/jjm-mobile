@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
+import { useUser } from '../hooks/useUser';
 import { useWorkItems } from '../hooks/useWorkItems';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
@@ -17,8 +18,10 @@ type WorkItemListNavigationProp = NativeStackNavigationProp<
 export function WorkItemListScreen() {
   const navigation = useNavigation<WorkItemListNavigationProp>();
   const { data: workItems, isLoading, isError } = useWorkItems();
+  const { data: userProfile } = useUser();
   const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const employeeName = userProfile?.name || 'Employee Name';
 
   const handleLogout = async () => {
     setIsMenuOpen(false);
@@ -51,7 +54,7 @@ export function WorkItemListScreen() {
       <View style={styles.headerContainer}>
         <View style={styles.headerRow}>
           <Text style={styles.employeeName} testID="work-items-employee-name">
-            Employee Name
+            {employeeName}
           </Text>
 
           <View style={styles.menuWrapper}>
@@ -62,7 +65,9 @@ export function WorkItemListScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open menu"
             >
-              <Text style={styles.menuButtonText}>•••</Text>
+              <Text style={styles.menuButtonText}>•</Text>
+              <Text style={styles.menuButtonText}>•</Text>
+              <Text style={styles.menuButtonText}>•</Text>
             </Pressable>
 
             {isMenuOpen ? (
@@ -82,7 +87,6 @@ export function WorkItemListScreen() {
           </View>
         </View>
         <Text style={styles.title}>Work Items</Text>
-        <Text style={styles.subtitle}>Select a work item to view details.</Text>
       </View>
 
       {isLoading ? (
@@ -131,18 +135,14 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   menuButton: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
   menuButtonText: {
     color: colors.primary,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    lineHeight: fontSize.sm,
+    lineHeight: spacing.xs,
   },
   menuDropdown: {
     position: 'absolute',
@@ -182,10 +182,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: fontWeight.semibold,
     marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: fontSize.md,
-    color: colors.textPrimary,
   },
   listContent: {
     paddingBottom: spacing.lg,
