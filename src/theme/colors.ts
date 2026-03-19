@@ -9,4 +9,5 @@ export const colors = {
   textOnPrimary: '#FFFFFF',
   danger: '#B91C1C',
   disabledBackground: '#D1D5DB',
+  torchOn: '#FFD700',
 };

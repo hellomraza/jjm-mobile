@@ -122,6 +122,7 @@ export function WorkItemListScreen() {
           onRefresh={handleRefresh}
           refreshing={isRefetchingWorkItems || isRefetchingUserProfile}
           contentContainerStyle={styles.listContent}
+          showsHorizontalScrollIndicator={false}
         />
       ) : null}
     </SafeAreaView>
