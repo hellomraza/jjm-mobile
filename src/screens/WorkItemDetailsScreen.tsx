@@ -3,11 +3,16 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   RefreshControl,
   ScrollView,
+  type StyleProp,
   StyleSheet,
   Text,
   View,
+  type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
@@ -27,8 +32,85 @@ type WorkItemDetailsNavigationProp = NativeStackNavigationProp<
   'WorkItemDetails'
 >;
 
+type StatusBadgeVariant = 'approved' | 'pending' | 'rejected' | 'default';
+
+function getProgressFillStyle(
+  progressPercentage: number | undefined,
+): StyleProp<ViewStyle> {
+  const clampedProgress = Math.max(0, Math.min(100, progressPercentage ?? 0));
+
+  return {
+    width: `${clampedProgress}%`,
+  };
+}
+
+function getStickyButtonStyle(insetBottom: number): StyleProp<ViewStyle> {
+  const verticalPadding = (insetBottom + spacing.md) / 2;
+
+  return {
+    marginTop: 0,
+    paddingBottom: verticalPadding,
+    paddingTop: verticalPadding,
+    borderRadius: 0,
+  };
+}
+
+function getStatusVariant(status: string): StatusBadgeVariant {
+  const normalizedStatus = status.toLowerCase().replaceAll('_', ' ');
+
+  if (
+    normalizedStatus.includes('completed') ||
+    normalizedStatus.includes('approved')
+  ) {
+    return 'approved';
+  }
+
+  if (
+    normalizedStatus.includes('pending') ||
+    normalizedStatus.includes('in progress')
+  ) {
+    return 'pending';
+  }
+
+  if (
+    normalizedStatus.includes('rejected') ||
+    normalizedStatus.includes('failed')
+  ) {
+    return 'rejected';
+  }
+
+  return 'default';
+}
+
+function getStatusBadgeStyle(
+  variant: StatusBadgeVariant,
+): StyleProp<ViewStyle> {
+  switch (variant) {
+    case 'approved':
+      return styles.statusBadgeApproved;
+    case 'pending':
+      return styles.statusBadgePending;
+    case 'rejected':
+      return styles.statusBadgeRejected;
+    default:
+      return styles.statusBadgeDefault;
+  }
+}
+
+function getStatIconStyle(label: string): StyleProp<ViewStyle> {
+  switch (label) {
+    case 'Completed':
+      return styles.statIconCompleted;
+    case 'Pending':
+      return styles.statIconPending;
+    default:
+      return styles.statIconPrimary;
+  }
+}
+
 export function WorkItemDetailsScreen() {
   const navigation = useNavigation<WorkItemDetailsNavigationProp>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<WorkItemDetailsRouteProp>();
   const { workItemId, title } = route.params;
 
@@ -112,6 +194,8 @@ export function WorkItemDetailsScreen() {
     (workItem?.panchayat_id ? String(workItem.panchayat_id) : 'N/A');
   const contractorDisplay =
     contractor?.name ?? workItem?.contractor_id ?? 'N/A';
+  const progressFillStyle = getProgressFillStyle(workItem?.progress_percentage);
+  const viewComponentsButtonStyle = getStickyButtonStyle(insets.bottom);
 
   if (isWorkItemLoading) {
     return (
@@ -140,6 +224,7 @@ export function WorkItemDetailsScreen() {
         testID="work-item-details-back-button"
       />
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
@@ -159,17 +244,7 @@ export function WorkItemDetailsScreen() {
           <Text style={styles.sectionTitle}>Work Progress</Text>
           <View style={styles.progressContainer}>
             <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.min(
-                      workItem.progress_percentage || 0,
-                      100,
-                    )}%`,
-                  },
-                ]}
-              />
+              <View style={[styles.progressFill, progressFillStyle]} />
             </View>
             <Text style={styles.progressText}>
               {workItem.progress_percentage || 0}% Complete
@@ -226,18 +301,18 @@ export function WorkItemDetailsScreen() {
                 <StatCard
                   label="Total"
                   value={componentCount}
-                  color={colors.primary}
+                  iconStyle={styles.statIconPrimary}
                 />
                 <StatCard
                   label="Completed"
                   value={completedCount}
-                  color="#10B981"
+                  iconStyle={styles.statIconCompleted}
                   testID="component-completed-count"
                 />
                 <StatCard
                   label="Pending"
                   value={pendingCount}
-                  color="#F59E0B"
+                  iconStyle={styles.statIconPending}
                   testID="component-pending-count"
                 />
               </View>
@@ -265,22 +340,24 @@ export function WorkItemDetailsScreen() {
             </>
           ) : null}
         </View>
-
-        {/* Action Button */}
-        <View style={styles.buttonContainer}>
-          <PrimaryButton
-            label="View Components"
-            onPress={() =>
-              navigation.navigate('ComponentList', {
-                workItemId,
-                title: workItem.title || title,
-                work_code: workItem.work_code,
-              })
-            }
-            testID="view-components-button"
-          />
-        </View>
       </ScrollView>
+
+      {/* Action Button - Sticky at Bottom */}
+      <View style={styles.buttonContainer}>
+        <PrimaryButton
+          label="View Components"
+          onPress={() =>
+            navigation.navigate('ComponentList', {
+              workItemId,
+              title: workItem.title || title,
+              work_code: workItem.work_code,
+            })
+          }
+          customStyles={viewComponentsButtonStyle}
+          customTextStyles={styles.viewComponentsButtonText}
+          testID="view-components-button"
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -308,31 +385,12 @@ function DetailRow({
 }
 
 function StatusBadge({ status }: { status: string }) {
-  let badgeColor = '#6B7280'; // default gray
-  let textColor = '#FFFFFF';
-
-  if (
-    status.toLowerCase().includes('completed') ||
-    status.toLowerCase().includes('approved')
-  ) {
-    badgeColor = '#10B981'; // green
-  } else if (
-    status.toLowerCase().includes('pending') ||
-    status.toLowerCase().includes('in progress')
-  ) {
-    badgeColor = '#F59E0B'; // amber
-  } else if (
-    status.toLowerCase().includes('rejected') ||
-    status.toLowerCase().includes('failed')
-  ) {
-    badgeColor = '#EF4444'; // red
-  }
+  const statusVariant = getStatusVariant(status);
+  const statusBadgeStyle = getStatusBadgeStyle(statusVariant);
 
   return (
-    <View style={[styles.statusBadge, { backgroundColor: badgeColor }]}>
-      <Text style={[styles.statusBadgeText, { color: textColor }]}>
-        {status}
-      </Text>
+    <View style={[styles.statusBadge, statusBadgeStyle]}>
+      <Text style={styles.statusBadgeText}>{status}</Text>
     </View>
   );
 }
@@ -340,17 +398,19 @@ function StatusBadge({ status }: { status: string }) {
 function StatCard({
   label,
   value,
-  color,
+  iconStyle,
   testID,
 }: {
   label: string;
   value: number;
-  color: string;
+  iconStyle: StyleProp<ViewStyle>;
   testID?: string;
 }) {
+  const resolvedIconStyle = iconStyle ?? getStatIconStyle(label);
+
   return (
     <View style={styles.statCard} testID={testID}>
-      <View style={[styles.statIcon, { backgroundColor: color }]} />
+      <View style={[styles.statIcon, resolvedIconStyle]} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -373,12 +433,12 @@ function toNumericId(value: string | number | undefined) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    flexDirection: 'column',
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.md,
   },
 
   /* Header Card */
@@ -500,8 +560,21 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: fontSize.xs,
+    color: colors.white,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.3,
+  },
+  statusBadgeApproved: {
+    backgroundColor: '#10B981',
+  },
+  statusBadgePending: {
+    backgroundColor: '#F59E0B',
+  },
+  statusBadgeRejected: {
+    backgroundColor: '#EF4444',
+  },
+  statusBadgeDefault: {
+    backgroundColor: '#6B7280',
   },
 
   /* Stats Container */
@@ -525,6 +598,15 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     marginBottom: spacing.sm,
+  },
+  statIconPrimary: {
+    backgroundColor: colors.primary,
+  },
+  statIconCompleted: {
+    backgroundColor: '#10B981',
+  },
+  statIconPending: {
+    backgroundColor: '#F59E0B',
   },
   statValue: {
     fontSize: fontSize.lg,
@@ -551,9 +633,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
 
-  /* Button Container */
+  /* Button Container - Sticky at Bottom */
   buttonContainer: {
-    marginBottom: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
 
   /* Utility Styles */
@@ -561,4 +645,9 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textPrimary,
   },
+  viewComponentsButtonText: {
+    fontSize: fontSize.md,
+  },
 });
+
+export { getProgressFillStyle, getStatusVariant, getStickyButtonStyle };

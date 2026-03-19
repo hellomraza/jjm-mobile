@@ -1,7 +1,13 @@
 import React from 'react';
 import { ScrollView } from 'react-native';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { WorkItemDetailsScreen } from './WorkItemDetailsScreen';
+import { spacing } from '../theme/designSystem';
+import {
+  getProgressFillStyle,
+  getStatusVariant,
+  getStickyButtonStyle,
+  WorkItemDetailsScreen,
+} from './WorkItemDetailsScreen';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -25,6 +31,11 @@ jest.mock('@react-navigation/native', () => ({
       title: 'Install Pipeline',
     },
   }),
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
 jest.mock('../hooks/useWorkItems', () => ({
@@ -225,5 +236,37 @@ describe('WorkItemDetailsScreen', () => {
     expect(mockRefetchBlock).toHaveBeenCalledTimes(1);
     expect(mockRefetchPanchayat).toHaveBeenCalledTimes(1);
     expect(mockRefetchUserById).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps progress fill style width between 0 and 100 percent', () => {
+    expect(getProgressFillStyle(-20)).toEqual({ width: '0%' });
+    expect(getProgressFillStyle(45)).toEqual({ width: '45%' });
+    expect(getProgressFillStyle(120)).toEqual({ width: '100%' });
+  });
+
+  it('returns status badge variants based on status text', () => {
+    expect(getStatusVariant('APPROVED')).toBe('approved');
+    expect(getStatusVariant('IN_PROGRESS')).toBe('pending');
+    expect(getStatusVariant('REJECTED')).toBe('rejected');
+    expect(getStatusVariant('UNKNOWN')).toBe('default');
+  });
+
+  it('computes sticky button style using bottom inset', () => {
+    const defaultVerticalPadding = (0 + spacing.md) / 2;
+    const insetVerticalPadding = (20 + spacing.md) / 2;
+
+    expect(getStickyButtonStyle(0)).toEqual({
+      marginTop: 0,
+      paddingBottom: defaultVerticalPadding,
+      paddingTop: defaultVerticalPadding,
+      borderRadius: 0,
+    });
+
+    expect(getStickyButtonStyle(20)).toEqual({
+      marginTop: 0,
+      paddingBottom: insetVerticalPadding,
+      paddingTop: insetVerticalPadding,
+      borderRadius: 0,
+    });
   });
 });
