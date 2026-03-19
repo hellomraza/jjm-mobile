@@ -4,15 +4,21 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { useComponents } from '../hooks/useComponents';
 import { useUploadPhotoMutation } from '../hooks/usePhotos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
@@ -26,6 +32,7 @@ type UploadPhotoNavigationProp = NativeStackNavigationProp<
 
 export function UploadPhotoScreen() {
   const navigation = useNavigation<UploadPhotoNavigationProp>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<UploadPhotoRouteProp>();
   const {
     workItemId,
@@ -44,7 +51,20 @@ export function UploadPhotoScreen() {
   } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  const { data: components } = useComponents(workItemId);
   const mutation = useUploadPhotoMutation(workItemId, componentId);
+
+  const orderedComponents = [...(components ?? [])].sort((a, b) => {
+    const orderA = a.component?.order_number ?? Number.MAX_SAFE_INTEGER;
+    const orderB = b.component?.order_number ?? Number.MAX_SAFE_INTEGER;
+
+    return orderA - orderB;
+  });
+  const firstIncompleteComponent = orderedComponents.find(
+    component => component.status !== 'APPROVED',
+  );
+  const isCurrentComponentAllowed =
+    !firstIncompleteComponent || firstIncompleteComponent.id === componentId;
 
   useEffect(() => {
     if (typeof latitude === 'number' && typeof longitude === 'number') {
@@ -74,8 +94,32 @@ export function UploadPhotoScreen() {
   const resolvedLongitude =
     typeof longitude === 'number' ? longitude : deviceLocation?.longitude;
 
+  const navigateToCamera = () => {
+    if (!isCurrentComponentAllowed) {
+      Alert.alert(
+        'Component Locked',
+        'Please complete the previous component before adding progress here.',
+      );
+      return;
+    }
+
+    navigation.navigate('Camera', {
+      workItemId,
+      componentId,
+      componentName,
+    });
+  };
+
   const handleSubmit = () => {
     const progressValue = parseFloat(progress);
+
+    if (!isCurrentComponentAllowed) {
+      Alert.alert(
+        'Component Locked',
+        'Please complete the previous component before submitting this one.',
+      );
+      return;
+    }
 
     if (!capturedPhotoPath) {
       Alert.alert('No Photo', 'Please capture a photo before submitting.');
@@ -129,23 +173,45 @@ export function UploadPhotoScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <BackButton
-          onPress={() => navigation.goBack()}
-          testID="upload-back-button"
-        />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={{ marginTop: spacing.sm, marginBottom: spacing.md }}>
+          <BackButton
+            onPress={() => navigation.goBack()}
+            testID="upload-back-button"
+          />
+        </View>
         <View style={styles.card}>
           <Text style={styles.title}>Upload Photo</Text>
           <Text style={styles.subtitle}>{componentName}</Text>
 
           {capturedPhotoPath ? (
-            <Text style={styles.caption} testID="upload-captured-photo-path">
-              Photo ready: {capturedPhotoPath}
-            </Text>
+            <>
+              <View style={styles.previewContainer}>
+                <Image
+                  source={{ uri: capturedPhotoPath }}
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                  testID="upload-photo-preview"
+                />
+              </View>
+              <Text style={styles.caption} testID="upload-captured-photo-path">
+                Photo ready: {capturedPhotoPath}
+              </Text>
+            </>
           ) : (
-            <Text style={styles.caption} testID="upload-no-photo-text">
-              No photo captured yet.
-            </Text>
+            <Pressable
+              style={styles.uploadPlaceholder}
+              onPress={navigateToCamera}
+              testID="upload-photo-placeholder"
+            >
+              <Text style={styles.uploadPlaceholderTitle}>Capture Photo</Text>
+              <Text style={styles.uploadPlaceholderHint}>
+                Tap to open camera
+              </Text>
+            </Pressable>
           )}
 
           {typeof resolvedLatitude === 'number' &&
@@ -172,6 +238,15 @@ export function UploadPhotoScreen() {
             </Text>
           ) : null}
 
+          {!isCurrentComponentAllowed ? (
+            <Text
+              style={styles.sequenceWarning}
+              testID="upload-sequence-warning"
+            >
+              This component is locked. Complete the previous component first.
+            </Text>
+          ) : null}
+
           <Text style={styles.label}>Progress Value</Text>
           <TextInput
             style={styles.input}
@@ -191,20 +266,8 @@ export function UploadPhotoScreen() {
           <PrimaryButton
             label={mutation.isPending ? 'Uploading...' : 'Submit Photo'}
             onPress={handleSubmit}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !isCurrentComponentAllowed}
             testID="upload-submit-button"
-          />
-
-          <PrimaryButton
-            label="Capture Photo"
-            onPress={() =>
-              navigation.navigate('Camera', {
-                workItemId,
-                componentId,
-                componentName,
-              })
-            }
-            testID="upload-open-camera-button"
           />
         </View>
       </ScrollView>
@@ -218,9 +281,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondaryBackground,
   },
   scrollContent: {
-    padding: spacing.md,
+    // padding: spacing.md,
   },
   card: {
+    marginHorizontal: spacing.md,
     backgroundColor: colors.white,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -242,6 +306,43 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textPrimary,
     marginBottom: spacing.xxs,
+  },
+  previewContainer: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.divider,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.secondaryBackground,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  uploadPlaceholder: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderStyle: 'dotted',
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.secondaryBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  uploadPlaceholderTitle: {
+    fontSize: fontSize.md,
+    color: colors.primary,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.xxs,
+  },
+  uploadPlaceholderHint: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
   },
   captionError: {
     fontSize: fontSize.sm,
@@ -269,6 +370,11 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: fontSize.sm,
     marginBottom: spacing.xs,
+  },
+  sequenceWarning: {
+    color: colors.danger,
+    fontSize: fontSize.sm,
+    marginBottom: spacing.sm,
   },
   centeredContainer: {
     flex: 1,
