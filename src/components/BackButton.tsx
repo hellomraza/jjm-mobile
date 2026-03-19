@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ReactElement } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 
@@ -6,12 +8,21 @@ type BackButtonProps = {
   onPress: () => void;
   testID: string;
   label?: string;
+  icon?: ReactElement;
 };
 
-export function BackButton({ onPress, testID, label = 'Back' }: BackButtonProps) {
+export function BackButton({
+  onPress,
+  testID,
+  icon: IconComponent,
+}: BackButtonProps) {
   return (
     <Pressable style={styles.backButton} onPress={onPress} testID={testID}>
-      <Text style={styles.backButtonText}>{label}</Text>
+      {IconComponent ? (
+        IconComponent
+      ) : (
+        <Icon name="arrow-left" size={24} color={colors.primary} />
+      )}
     </Pressable>
   );
 }
@@ -20,11 +31,12 @@ const styles = StyleSheet.create({
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
+    width: 40,
+    height: 40,
+    marginLeft: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radius.pill,
     backgroundColor: colors.white,
   },
   backButtonText: {
