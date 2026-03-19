@@ -2,6 +2,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BackButton } from '../components/BackButton';
 import { useComponents } from '../hooks/useComponents';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
@@ -96,6 +97,10 @@ export function ComponentListScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.headerContainer}>
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="component-list-back-button"
+        />
         <Text style={styles.title}>Components</Text>
         <Text style={styles.subtitle}>{title}</Text>
         <Text style={styles.caption}>Work Code: {work_code}</Text>

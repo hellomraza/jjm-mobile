@@ -30,13 +30,15 @@ jest.mock('react-native-vision-camera', () => {
   const ReactModule = require('react');
   const { View } = require('react-native');
 
-  const MockCamera = ReactModule.forwardRef((_props: unknown, ref: React.Ref<unknown>) => {
-    ReactModule.useImperativeHandle(ref, () => ({
-      takePhoto: mockTakePhoto,
-    }));
+  const MockCamera = ReactModule.forwardRef(
+    (_props: unknown, ref: React.Ref<unknown>) => {
+      ReactModule.useImperativeHandle(ref, () => ({
+        takePhoto: mockTakePhoto,
+      }));
 
-    return <View testID="camera-view" />;
-  });
+      return <View testID="camera-view" />;
+    },
+  );
 
   return {
     Camera: Object.assign(MockCamera, {
@@ -91,7 +93,9 @@ describe('CameraScreen', () => {
     const root = await renderScreen();
 
     await act(async () => {
-      root.findByProps({ testID: 'camera-request-permission-button' }).props.onPress();
+      root
+        .findByProps({ testID: 'camera-request-permission-button' })
+        .props.onPress();
     });
 
     expect(mockRequestCameraPermission).toHaveBeenCalledTimes(1);
@@ -128,6 +132,16 @@ describe('CameraScreen', () => {
 
     act(() => {
       root.findByProps({ testID: 'camera-close-button' }).props.onPress();
+    });
+
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('goes back on back button press', async () => {
+    const root = await renderScreen();
+
+    act(() => {
+      root.findByProps({ testID: 'camera-back-button' }).props.onPress();
     });
 
     expect(mockGoBack).toHaveBeenCalledTimes(1);

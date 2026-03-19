@@ -2,6 +2,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
 import { useLocationByTypeAndId } from '../hooks/useLocations';
@@ -79,7 +80,7 @@ export function WorkItemDetailsScreen() {
 
   if (isWorkItemError || !workItem) {
     return (
-      <SafeAreaView edges={['top']}style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.container}>
         <Text testID="work-item-details-error-text">
           Failed to load work details.
         </Text>
@@ -89,11 +90,14 @@ export function WorkItemDetailsScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <BackButton
+        onPress={() => navigation.goBack()}
+        testID="work-item-details-back-button"
+      />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <Text style={styles.title}>{workItem.title || title}</Text>
           <Text style={styles.subtitle}>Code: {workItem.work_code}</Text>
-          <Text style={styles.caption}>Work Item ID: {workItemId}</Text>
 
           <SectionTitle label="Description" />
           <Text style={styles.bodyText}>{workItem.description || 'N/A'}</Text>
@@ -207,18 +211,13 @@ function toNumericId(value: string | number | undefined) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.secondaryBackground,
     padding: spacing.md,
   },
   scrollContent: {
     paddingBottom: spacing.lg,
   },
   card: {
-    backgroundColor: colors.white,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    padding: spacing.md,
   },
   title: {
     fontSize: fontSize.xl,

@@ -3,6 +3,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { WorkItemDetailsScreen } from './WorkItemDetailsScreen';
 
 const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
 const mockUseWorkItem = jest.fn();
 const mockUseComponents = jest.fn();
 const mockUseUserById = jest.fn();
@@ -10,7 +11,7 @@ const mockUseLocationByTypeAndId = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({ navigate: mockNavigate, goBack: mockGoBack }),
   useRoute: () => ({
     params: {
       workItemId: 'work-item-1',
@@ -157,6 +158,19 @@ describe('WorkItemDetailsScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('ComponentList', {
       workItemId: 'work-item-1',
       title: 'Install Pipeline',
+      work_code: 'WI-2026-0001',
     });
+  });
+
+  it('goes back on back button press', async () => {
+    const root = await renderScreen();
+
+    act(() => {
+      root
+        .findByProps({ testID: 'work-item-details-back-button' })
+        .props.onPress();
+    });
+
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 });

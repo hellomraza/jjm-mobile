@@ -8,6 +8,7 @@ import {
   useCameraDevice,
   useCameraPermission,
 } from 'react-native-vision-camera';
+import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
@@ -120,6 +121,10 @@ export function CameraScreen() {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
         <View style={styles.permissionContainer}>
+          <BackButton
+            onPress={() => navigation.goBack()}
+            testID="camera-back-button"
+          />
           <Text style={styles.title}>Camera Permission Required</Text>
           <Text style={styles.caption}>
             Please allow camera access to take component photos.
@@ -148,6 +153,10 @@ export function CameraScreen() {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
         <View style={styles.permissionContainer}>
+          <BackButton
+            onPress={() => navigation.goBack()}
+            testID="camera-back-button"
+          />
           <Text style={styles.title}>Camera Unavailable</Text>
           <Text style={styles.caption}>
             No compatible camera device was found.
@@ -164,6 +173,12 @@ export function CameraScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <View style={styles.topBar}>
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="camera-back-button"
+        />
+      </View>
       <View style={styles.previewContainer}>
         <Camera
           ref={cameraRef}
@@ -214,6 +229,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topBar: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
   },
   title: {
     fontSize: fontSize.xl,

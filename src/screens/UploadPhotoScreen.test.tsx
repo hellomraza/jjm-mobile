@@ -46,8 +46,9 @@ describe('UploadPhotoScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // By default, geolocation resolves immediately with a position
-    mockGetCurrentPosition.mockImplementation((success: (pos: object) => void) =>
-      success({ coords: { latitude: 28.6139, longitude: 77.209 } }),
+    mockGetCurrentPosition.mockImplementation(
+      (success: (pos: object) => void) =>
+        success({ coords: { latitude: 28.6139, longitude: 77.209 } }),
     );
     mockRouteParams = {
       workItemId: 'work-item-1',
@@ -119,9 +120,7 @@ describe('UploadPhotoScreen', () => {
       root.findByProps({ testID: 'upload-photo-location-text' }).props.children,
     ).toContain('26.9124');
 
-    expect(
-      root.findByProps({ testID: 'upload-photo-time-text' }),
-    ).toBeTruthy();
+    expect(root.findByProps({ testID: 'upload-photo-time-text' })).toBeTruthy();
   });
 
   it('shows no-photo text when capturedPhotoPath is not provided', async () => {
@@ -132,21 +131,15 @@ describe('UploadPhotoScreen', () => {
 
     const root = await renderScreen();
 
-    expect(
-      root.findByProps({ testID: 'upload-no-photo-text' }),
-    ).toBeTruthy();
+    expect(root.findByProps({ testID: 'upload-no-photo-text' })).toBeTruthy();
   });
 
   it('renders progress input and submit button', async () => {
     const root = await renderScreen();
 
-    expect(
-      root.findByProps({ testID: 'upload-progress-input' }),
-    ).toBeTruthy();
+    expect(root.findByProps({ testID: 'upload-progress-input' })).toBeTruthy();
 
-    expect(
-      root.findByProps({ testID: 'upload-submit-button' }),
-    ).toBeTruthy();
+    expect(root.findByProps({ testID: 'upload-submit-button' })).toBeTruthy();
   });
 
   it('calls mutation with correct workItemId and componentId on submit', async () => {
@@ -179,9 +172,7 @@ describe('UploadPhotoScreen', () => {
 
     const root = await renderScreen();
 
-    expect(
-      root.findByProps({ testID: 'upload-error-text' }),
-    ).toBeTruthy();
+    expect(root.findByProps({ testID: 'upload-error-text' })).toBeTruthy();
   });
 
   it('shows success text and done button when mutation succeeds', async () => {
@@ -194,9 +185,7 @@ describe('UploadPhotoScreen', () => {
 
     const root = await renderScreen();
 
-    expect(
-      root.findByProps({ testID: 'upload-success-text' }),
-    ).toBeTruthy();
+    expect(root.findByProps({ testID: 'upload-success-text' })).toBeTruthy();
 
     await act(async () => {
       root.findByProps({ testID: 'upload-done-button' }).props.onPress();
@@ -209,9 +198,7 @@ describe('UploadPhotoScreen', () => {
     const root = await renderScreen();
 
     await act(async () => {
-      root
-        .findByProps({ testID: 'upload-open-camera-button' })
-        .props.onPress();
+      root.findByProps({ testID: 'upload-open-camera-button' }).props.onPress();
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('Camera', {
@@ -219,5 +206,15 @@ describe('UploadPhotoScreen', () => {
       componentId: 'component-1',
       componentName: 'Pumping Mains',
     });
+  });
+
+  it('goes back when back button is pressed', async () => {
+    const root = await renderScreen();
+
+    await act(async () => {
+      root.findByProps({ testID: 'upload-back-button' }).props.onPress();
+    });
+
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 });

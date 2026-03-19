@@ -10,12 +10,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useUploadPhotoMutation } from '../hooks/usePhotos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 type UploadPhotoRouteProp = RouteProp<RootStackParamList, 'UploadPhoto'>;
 type UploadPhotoNavigationProp = NativeStackNavigationProp<
@@ -104,6 +105,10 @@ export function UploadPhotoScreen() {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
         <View style={[styles.scrollContent, styles.centeredContainer]}>
+          <BackButton
+            onPress={() => navigation.goBack()}
+            testID="upload-back-button"
+          />
           <View style={styles.card}>
             <Text style={styles.title} testID="upload-success-text">
               Photo Uploaded!
@@ -125,6 +130,10 @@ export function UploadPhotoScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="upload-back-button"
+        />
         <View style={styles.card}>
           <Text style={styles.title}>Upload Photo</Text>
           <Text style={styles.subtitle}>{componentName}</Text>

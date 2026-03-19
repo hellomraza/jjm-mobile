@@ -3,11 +3,12 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { ComponentListScreen } from './ComponentListScreen';
 
 const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
 const mockUseComponents = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({ navigate: mockNavigate, goBack: mockGoBack }),
   useRoute: () => ({
     params: {
       workItemId: 'work-item-1',
@@ -44,7 +45,9 @@ describe('ComponentListScreen', () => {
 
     const root = await renderScreen();
 
-    expect(root.findByProps({ testID: 'components-loading-text' })).toBeTruthy();
+    expect(
+      root.findByProps({ testID: 'components-loading-text' }),
+    ).toBeTruthy();
   });
 
   it('shows error state', async () => {
@@ -116,5 +119,23 @@ describe('ComponentListScreen', () => {
       componentId: 'component-1',
       componentName: 'Pumping Mains',
     });
+  });
+
+  it('goes back when back button is pressed', async () => {
+    mockUseComponents.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+
+    const root = await renderScreen();
+
+    act(() => {
+      root
+        .findByProps({ testID: 'component-list-back-button' })
+        .props.onPress();
+    });
+
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 });
