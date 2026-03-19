@@ -22,6 +22,7 @@ export type RootStackParamList = {
   ComponentList: {
     workItemId: string;
     title: string;
+    work_code?: string;
   };
   UploadPhoto: {
     workItemId: string;

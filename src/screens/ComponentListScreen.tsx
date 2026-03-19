@@ -38,7 +38,7 @@ function getProgressPercent(progress: string, quantity?: string) {
 export function ComponentListScreen() {
   const navigation = useNavigation<ComponentListNavigationProp>();
   const route = useRoute<ComponentListRouteProp>();
-  const { workItemId, title } = route.params;
+  const { workItemId, title, work_code } = route.params;
   const { data: components, isLoading, isError } = useComponents(workItemId);
 
   const renderItem = ({
@@ -98,7 +98,7 @@ export function ComponentListScreen() {
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Components</Text>
         <Text style={styles.subtitle}>{title}</Text>
-        <Text style={styles.caption}>Work Item ID: {workItemId}</Text>
+        <Text style={styles.caption}>Work Code: {work_code}</Text>
       </View>
 
       {isLoading ? (

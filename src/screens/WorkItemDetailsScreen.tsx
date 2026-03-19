@@ -159,6 +159,7 @@ export function WorkItemDetailsScreen() {
               navigation.navigate('ComponentList', {
                 workItemId,
                 title: workItem.title || title,
+                work_code: workItem.work_code,
               })
             }
             testID="view-components-button"
