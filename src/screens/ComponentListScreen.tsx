@@ -1,6 +1,13 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { useComponents } from '../hooks/useComponents';
@@ -48,24 +55,49 @@ export function ComponentListScreen() {
     isRefetching,
   } = useComponents(workItemId);
 
+  const orderedComponents = [...(components ?? [])].sort((a, b) => {
+    const orderA = a.component?.order_number ?? Number.MAX_SAFE_INTEGER;
+    const orderB = b.component?.order_number ?? Number.MAX_SAFE_INTEGER;
+
+    return orderA - orderB;
+  });
+
+  const firstIncompleteComponent = orderedComponents.find(
+    component => component.status !== 'APPROVED',
+  );
+
+  const activeComponentId = firstIncompleteComponent?.id;
+
   const renderItem = ({
     item,
   }: {
     item: NonNullable<typeof components>[number];
   }) => {
     const progressPercent = getProgressPercent(item.progress, item.quantity);
+    const isOutOfOrderLocked =
+      !!activeComponentId &&
+      item.id !== activeComponentId &&
+      item.status !== 'APPROVED';
 
     return (
       <Pressable
-        style={styles.row}
+        style={[styles.row, isOutOfOrderLocked && styles.rowLocked]}
         testID={`component-row-${item.id}`}
-        onPress={() =>
+        onPress={() => {
+          if (isOutOfOrderLocked) {
+            Alert.alert(
+              'Complete Previous Component',
+              'Please complete the previous component before updating this one.',
+            );
+            return;
+          }
+
           navigation.navigate('UploadPhoto', {
             workItemId,
             componentId: item.id,
             componentName: item.component?.name ?? 'Component',
-          })
-        }
+          });
+        }}
       >
         <View style={styles.rowHeader}>
           <Text style={styles.componentName}>
@@ -73,6 +105,15 @@ export function ComponentListScreen() {
           </Text>
           <Text style={styles.status}>{item.status}</Text>
         </View>
+
+        {isOutOfOrderLocked ? (
+          <Text
+            style={styles.lockedHint}
+            testID={`component-locked-${item.id}`}
+          >
+            Locked until previous component is approved.
+          </Text>
+        ) : null}
 
         <View style={styles.progressHeader}>
           <Text style={styles.meta}>
@@ -102,11 +143,11 @@ export function ComponentListScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <BackButton
+        onPress={() => navigation.goBack()}
+        testID="component-list-back-button"
+      />
       <View style={styles.headerContainer}>
-        <BackButton
-          onPress={() => navigation.goBack()}
-          testID="component-list-back-button"
-        />
         <Text style={styles.title}>Components</Text>
         <Text style={styles.subtitle}>{title}</Text>
         <Text style={styles.caption}>Work Code: {work_code}</Text>
@@ -124,13 +165,12 @@ export function ComponentListScreen() {
 
       {!isLoading && !isError ? (
         <FlatList
-          data={components ?? []}
+          data={orderedComponents}
           keyExtractor={item => item.id}
           renderItem={renderItem}
-          onRefresh={() => {
-            void refetch();
-          }}
+          onRefresh={() => refetch()}
           refreshing={isRefetching}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
         />
       ) : null}
@@ -142,10 +182,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondaryBackground,
-    padding: spacing.md,
   },
   headerContainer: {
     marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   title: {
     fontSize: fontSize.xl,
@@ -164,17 +204,21 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   row: {
     backgroundColor: colors.white,
     borderRadius: radius.md,
     padding: spacing.md,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
     shadowColor: colors.text,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2,
+  },
+  rowLocked: {
+    opacity: 0.65,
   },
   rowHeader: {
     flexDirection: 'row',
@@ -193,6 +237,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     color: colors.primary,
+  },
+  lockedHint: {
+    fontSize: fontSize.xs,
+    color: colors.danger,
+    marginBottom: spacing.xxs,
   },
   meta: {
     fontSize: fontSize.sm,
