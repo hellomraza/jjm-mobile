@@ -3,6 +3,7 @@ import {
   StyleProp,
   StyleSheet,
   Text,
+  TextStyle,
   ViewStyle,
 } from 'react-native';
 import { colors } from '../theme/colors';
@@ -15,6 +16,7 @@ type PrimaryButtonProps = {
   loading?: boolean;
   testID: string;
   customStyles?: StyleProp<ViewStyle>;
+  customTextStyles?: StyleProp<TextStyle>;
 };
 
 export function PrimaryButton({
@@ -24,6 +26,7 @@ export function PrimaryButton({
   loading = false,
   testID,
   customStyles,
+  customTextStyles,
 }: PrimaryButtonProps) {
   return (
     <Pressable
@@ -36,7 +39,9 @@ export function PrimaryButton({
       disabled={disabled || loading}
       testID={testID}
     >
-      <Text style={styles.buttonText}>{loading ? 'Logging in...' : label}</Text>
+      <Text style={[styles.buttonText, customTextStyles]}>
+        {loading ? 'Logging in...' : label}
+      </Text>
     </Pressable>
   );
 }
