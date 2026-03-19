@@ -17,11 +17,25 @@ type WorkItemListNavigationProp = NativeStackNavigationProp<
 
 export function WorkItemListScreen() {
   const navigation = useNavigation<WorkItemListNavigationProp>();
-  const { data: workItems, isLoading, isError } = useWorkItems();
-  const { data: userProfile } = useUser();
+  const {
+    data: workItems,
+    isLoading,
+    isError,
+    refetch: refetchWorkItems,
+    isRefetching: isRefetchingWorkItems,
+  } = useWorkItems();
+  const {
+    data: userProfile,
+    refetch: refetchUserProfile,
+    isRefetching: isRefetchingUserProfile,
+  } = useUser();
   const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const employeeName = userProfile?.name || 'Employee Name';
+
+  const handleRefresh = () => {
+    void Promise.allSettled([refetchWorkItems(), refetchUserProfile()]);
+  };
 
   const handleLogout = async () => {
     setIsMenuOpen(false);
@@ -105,6 +119,8 @@ export function WorkItemListScreen() {
           data={workItems ?? []}
           keyExtractor={item => item.id}
           renderItem={renderItem}
+          onRefresh={handleRefresh}
+          refreshing={isRefetchingWorkItems || isRefetchingUserProfile}
           contentContainerStyle={styles.listContent}
         />
       ) : null}

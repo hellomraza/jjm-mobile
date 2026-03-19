@@ -1,4 +1,5 @@
 import React from 'react';
+import { ScrollView } from 'react-native';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { WorkItemDetailsScreen } from './WorkItemDetailsScreen';
 
@@ -8,6 +9,12 @@ const mockUseWorkItem = jest.fn();
 const mockUseComponents = jest.fn();
 const mockUseUserById = jest.fn();
 const mockUseLocationByTypeAndId = jest.fn();
+const mockRefetchWorkItem = jest.fn();
+const mockRefetchComponents = jest.fn();
+const mockRefetchUserById = jest.fn();
+const mockRefetchDistrict = jest.fn();
+const mockRefetchBlock = jest.fn();
+const mockRefetchPanchayat = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -40,6 +47,12 @@ jest.mock('../hooks/useLocations', () => ({
 describe('WorkItemDetailsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRefetchWorkItem.mockResolvedValue(undefined);
+    mockRefetchComponents.mockResolvedValue(undefined);
+    mockRefetchUserById.mockResolvedValue(undefined);
+    mockRefetchDistrict.mockResolvedValue(undefined);
+    mockRefetchBlock.mockResolvedValue(undefined);
+    mockRefetchPanchayat.mockResolvedValue(undefined);
 
     mockUseWorkItem.mockReturnValue({
       data: {
@@ -69,6 +82,8 @@ describe('WorkItemDetailsScreen', () => {
       },
       isLoading: false,
       isError: false,
+      refetch: mockRefetchWorkItem,
+      isRefetching: false,
     });
 
     mockUseComponents.mockReturnValue({
@@ -79,26 +94,46 @@ describe('WorkItemDetailsScreen', () => {
       ],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
     });
 
     mockUseUserById.mockReturnValue({
       data: { name: 'ABC Contractors', email: 'contractor@jjm.in' },
+      refetch: mockRefetchUserById,
+      isRefetching: false,
     });
 
     mockUseLocationByTypeAndId.mockImplementation((type: string) => {
       if (type === 'districts') {
-        return { data: { districtname: 'Patna' } };
+        return {
+          data: { districtname: 'Patna' },
+          refetch: mockRefetchDistrict,
+          isRefetching: false,
+        };
       }
 
       if (type === 'blocks') {
-        return { data: { blockname: 'Dulhin Bazar' } };
+        return {
+          data: { blockname: 'Dulhin Bazar' },
+          refetch: mockRefetchBlock,
+          isRefetching: false,
+        };
       }
 
       if (type === 'panchayats') {
-        return { data: { panchayatname: 'Panchayat 1' } };
+        return {
+          data: { panchayatname: 'Panchayat 1' },
+          refetch: mockRefetchPanchayat,
+          isRefetching: false,
+        };
       }
 
-      return { data: undefined };
+      return {
+        data: undefined,
+        refetch: jest.fn(),
+        isRefetching: false,
+      };
     });
   });
 
@@ -117,6 +152,8 @@ describe('WorkItemDetailsScreen', () => {
       data: undefined,
       isLoading: true,
       isError: false,
+      refetch: mockRefetchWorkItem,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -172,5 +209,22 @@ describe('WorkItemDetailsScreen', () => {
     });
 
     expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes all detail queries on pull-to-refresh', async () => {
+    const root = await renderScreen();
+    const scrollView = root.findByType(ScrollView);
+    const refreshControl = scrollView.props.refreshControl;
+
+    await act(async () => {
+      await refreshControl.props.onRefresh();
+    });
+
+    expect(mockRefetchWorkItem).toHaveBeenCalledTimes(1);
+    expect(mockRefetchComponents).toHaveBeenCalledTimes(1);
+    expect(mockRefetchDistrict).toHaveBeenCalledTimes(1);
+    expect(mockRefetchBlock).toHaveBeenCalledTimes(1);
+    expect(mockRefetchPanchayat).toHaveBeenCalledTimes(1);
+    expect(mockRefetchUserById).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,10 +1,12 @@
 import React from 'react';
+import { FlatList } from 'react-native';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { ComponentListScreen } from './ComponentListScreen';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockUseComponents = jest.fn();
+const mockRefetchComponents = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -24,6 +26,7 @@ jest.mock('../hooks/useComponents', () => ({
 describe('ComponentListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRefetchComponents.mockResolvedValue(undefined);
   });
 
   async function renderScreen() {
@@ -41,6 +44,8 @@ describe('ComponentListScreen', () => {
       data: undefined,
       isLoading: true,
       isError: false,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -55,6 +60,8 @@ describe('ComponentListScreen', () => {
       data: undefined,
       isLoading: false,
       isError: true,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -67,6 +74,8 @@ describe('ComponentListScreen', () => {
       data: [],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -98,6 +107,8 @@ describe('ComponentListScreen', () => {
       ],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -126,6 +137,8 @@ describe('ComponentListScreen', () => {
       data: [],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -137,5 +150,24 @@ describe('ComponentListScreen', () => {
     });
 
     expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes components on pull-to-refresh', async () => {
+    mockUseComponents.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
+    });
+
+    const root = await renderScreen();
+    const flatList = root.findByType(FlatList);
+
+    await act(async () => {
+      await flatList.props.onRefresh();
+    });
+
+    expect(mockRefetchComponents).toHaveBeenCalledTimes(1);
   });
 });

@@ -40,7 +40,13 @@ export function ComponentListScreen() {
   const navigation = useNavigation<ComponentListNavigationProp>();
   const route = useRoute<ComponentListRouteProp>();
   const { workItemId, title, work_code } = route.params;
-  const { data: components, isLoading, isError } = useComponents(workItemId);
+  const {
+    data: components,
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+  } = useComponents(workItemId);
 
   const renderItem = ({
     item,
@@ -121,6 +127,10 @@ export function ComponentListScreen() {
           data={components ?? []}
           keyExtractor={item => item.id}
           renderItem={renderItem}
+          onRefresh={() => {
+            void refetch();
+          }}
+          refreshing={isRefetching}
           contentContainerStyle={styles.listContent}
         />
       ) : null}

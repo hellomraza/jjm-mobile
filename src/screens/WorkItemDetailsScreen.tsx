@@ -1,6 +1,12 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -30,21 +36,60 @@ export function WorkItemDetailsScreen() {
     data: workItem,
     isLoading: isWorkItemLoading,
     isError: isWorkItemError,
+    refetch: refetchWorkItem,
+    isRefetching: isRefetchingWorkItem,
   } = useWorkItem(workItemId);
   const {
     data: components,
     isLoading: isComponentsLoading,
     isError: isComponentsError,
+    refetch: refetchComponents,
+    isRefetching: isRefetchingComponents,
   } = useComponents(workItemId);
 
   const districtId = toNumericId(workItem?.district_id);
   const blockId = toNumericId(workItem?.block_id);
   const panchayatId = toNumericId(workItem?.panchayat_id);
 
-  const { data: district } = useLocationByTypeAndId('districts', districtId);
-  const { data: block } = useLocationByTypeAndId('blocks', blockId);
-  const { data: panchayat } = useLocationByTypeAndId('panchayats', panchayatId);
-  const { data: contractor } = useUserById(workItem?.contractor_id);
+  const {
+    data: district,
+    refetch: refetchDistrict,
+    isRefetching: isRefetchingDistrict,
+  } = useLocationByTypeAndId('districts', districtId);
+  const {
+    data: block,
+    refetch: refetchBlock,
+    isRefetching: isRefetchingBlock,
+  } = useLocationByTypeAndId('blocks', blockId);
+  const {
+    data: panchayat,
+    refetch: refetchPanchayat,
+    isRefetching: isRefetchingPanchayat,
+  } = useLocationByTypeAndId('panchayats', panchayatId);
+  const {
+    data: contractor,
+    refetch: refetchContractor,
+    isRefetching: isRefetchingContractor,
+  } = useUserById(workItem?.contractor_id);
+
+  const handleRefresh = () => {
+    void Promise.allSettled([
+      refetchWorkItem(),
+      refetchComponents(),
+      refetchDistrict(),
+      refetchBlock(),
+      refetchPanchayat(),
+      refetchContractor(),
+    ]);
+  };
+
+  const isRefreshing =
+    isRefetchingWorkItem ||
+    isRefetchingComponents ||
+    isRefetchingDistrict ||
+    isRefetchingBlock ||
+    isRefetchingPanchayat ||
+    isRefetchingContractor;
 
   const componentCount = components?.length ?? 0;
   const componentStatusCounts = (components ?? []).reduce<
@@ -94,7 +139,12 @@ export function WorkItemDetailsScreen() {
         onPress={() => navigation.goBack()}
         testID="work-item-details-back-button"
       />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+      >
         <View style={styles.card}>
           <Text style={styles.title}>{workItem.title || title}</Text>
           <Text style={styles.subtitle}>Code: {workItem.work_code}</Text>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { FlatList } from 'react-native';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { WorkItemListScreen } from './WorkItemListScreen';
 
@@ -7,6 +8,8 @@ const mockReplace = jest.fn();
 const mockLogout = jest.fn();
 const mockUseWorkItems = jest.fn();
 const mockUseUser = jest.fn();
+const mockRefetchWorkItems = jest.fn();
+const mockRefetchUser = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -31,7 +34,13 @@ describe('WorkItemListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLogout.mockResolvedValue(undefined);
-    mockUseUser.mockReturnValue({ data: null });
+    mockRefetchWorkItems.mockResolvedValue(undefined);
+    mockRefetchUser.mockResolvedValue(undefined);
+    mockUseUser.mockReturnValue({
+      data: null,
+      refetch: mockRefetchUser,
+      isRefetching: false,
+    });
   });
 
   async function renderScreen() {
@@ -49,6 +58,8 @@ describe('WorkItemListScreen', () => {
       data: undefined,
       isLoading: true,
       isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -62,6 +73,8 @@ describe('WorkItemListScreen', () => {
       data: undefined,
       isLoading: false,
       isError: true,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -73,6 +86,8 @@ describe('WorkItemListScreen', () => {
       data: [],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -110,6 +125,8 @@ describe('WorkItemListScreen', () => {
       ],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -131,6 +148,8 @@ describe('WorkItemListScreen', () => {
       data: [],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -154,6 +173,8 @@ describe('WorkItemListScreen', () => {
       data: [],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
     mockUseUser.mockReturnValue({
       data: {
@@ -166,6 +187,8 @@ describe('WorkItemListScreen', () => {
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-02T00:00:00Z',
       },
+      refetch: mockRefetchUser,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -174,5 +197,25 @@ describe('WorkItemListScreen', () => {
     });
 
     expect(employeeName.props.children).toBe('Raza Employee');
+  });
+
+  it('refreshes work items and user profile on pull-to-refresh', async () => {
+    mockUseWorkItems.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
+    });
+
+    const root = await renderScreen();
+    const flatList = root.findByType(FlatList);
+
+    await act(async () => {
+      await flatList.props.onRefresh();
+    });
+
+    expect(mockRefetchWorkItems).toHaveBeenCalledTimes(1);
+    expect(mockRefetchUser).toHaveBeenCalledTimes(1);
   });
 });
