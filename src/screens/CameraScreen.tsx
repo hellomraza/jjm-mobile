@@ -2,20 +2,28 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  SafeAreaView,
+  Alert,
+  Pressable,
   StyleSheet,
   Text,
+  Vibration,
   View,
 } from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Entypo';
 import {
   Camera,
   type PhotoFile,
   useCameraDevice,
   useCameraPermission,
 } from 'react-native-vision-camera';
-import { PrimaryButton } from '../components/PrimaryButton';
+import { BackButton } from '../components/BackButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
+import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 
 type CameraRouteProp = RouteProp<RootStackParamList, 'Camera'>;
 type CameraNavigationProp = NativeStackNavigationProp<
@@ -57,6 +65,7 @@ export function extractGpsMetadata(photo: PhotoFile): GpsMetadata {
 export function CameraScreen() {
   const navigation = useNavigation<CameraNavigationProp>();
   const route = useRoute<CameraRouteProp>();
+  const insets = useSafeAreaInsets();
   const { workItemId, componentId, componentName } = route.params;
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
@@ -64,6 +73,7 @@ export function CameraScreen() {
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [torch, setTorch] = useState<'on' | 'off'>('off');
 
   useEffect(() => {
     try {
@@ -119,10 +129,30 @@ export function CameraScreen() {
     }
   };
 
+  const toggleTorch = () => {
+    // if torch in not supported, do nothing
+    if (!device?.hasFlash) {
+      Alert.alert(
+        'Flash Not Supported',
+        'This device does not support flash/torch functionality.',
+      );
+      return;
+    }
+
+    Vibration?.vibrate(100);
+
+    setTorch(prev => (prev === 'on' ? 'off' : 'on'));
+  };
+
   if (!hasPermission) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.container}>
         <View style={styles.permissionContainer}>
+          <BackButton
+            onPress={() => navigation.goBack()}
+            testID="camera-back-button"
+            icon={<Icon name="cross" size={20} color={colors.primary} />}
+          />
           <Text style={styles.title}>Camera Permission Required</Text>
           <Text style={styles.caption}>
             Please allow camera access to take component photos.
@@ -132,16 +162,13 @@ export function CameraScreen() {
               {errorMessage}
             </Text>
           ) : null}
-          <PrimaryButton
-            label="Grant Camera Access"
+          <Pressable
+            style={styles.permissionButton}
             onPress={requestPermissions}
             testID="camera-request-permission-button"
-          />
-          <PrimaryButton
-            label="Close"
-            onPress={() => navigation.goBack()}
-            testID="camera-close-button"
-          />
+          >
+            <Text style={styles.permissionButtonText}>Grant Camera Access</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -149,57 +176,83 @@ export function CameraScreen() {
 
   if (!device) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.container}>
         <View style={styles.permissionContainer}>
+          <BackButton
+            onPress={() => navigation.goBack()}
+            testID="camera-back-button"
+            icon={<Icon name="cross" size={20} color={colors.primary} />}
+          />
           <Text style={styles.title}>Camera Unavailable</Text>
           <Text style={styles.caption}>
             No compatible camera device was found.
           </Text>
-          <PrimaryButton
-            label="Close"
-            onPress={() => navigation.goBack()}
-            testID="camera-close-button"
-          />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.previewContainer}>
-        <Camera
-          ref={cameraRef}
-          style={styles.camera}
-          device={device}
-          isActive
-          photo
-          enableLocation={hasLocationPermission}
+    <SafeAreaView edges={['top']} style={styles.fullscreenContainer}>
+      <Camera
+        ref={cameraRef}
+        style={styles.camera}
+        device={device}
+        isActive
+        photo
+        enableLocation={hasLocationPermission}
+        torch={torch}
+      />
+
+      <View
+        style={[styles.floatingTopControls, { top: spacing.sm + insets.top }]}
+      >
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="camera-back-button"
+          icon={<Icon name="cross" size={30} color={colors.primary} />}
+        />
+        <BackButton
+          onPress={toggleTorch}
+          testID="camera-flash-button"
+          icon={
+            <Icon
+              name="flash"
+              size={26}
+              color={torch === 'off' ? colors.textPrimary : colors.torchOn}
+            />
+          }
         />
       </View>
-      <View style={styles.infoContainer}>
+
+      {/* <View style={styles.floatingInfoContainer}>
         <Text style={styles.infoText}>
-          GPS metadata:{' '}
-          {hasLocationPermission ? 'enabled' : 'location permission not granted'}
+          GPS: {hasLocationPermission ? 'enabled' : 'permission not granted'}
         </Text>
         {errorMessage ? (
-          <Text style={styles.errorText} testID="camera-error-text">
+          <Text style={styles.errorOverlayText} testID="camera-error-text">
             {errorMessage}
           </Text>
         ) : null}
-      </View>
-      <View style={styles.controls}>
-        <PrimaryButton
-          label={isCapturing ? 'Capturing...' : 'Capture Photo'}
+      </View> */}
+
+      <View
+        style={[styles.floatingBottomControls, { bottom: 32 + insets.bottom }]}
+      >
+        <Pressable
+          style={[
+            styles.captureButton,
+            isCapturing && styles.captureButtonDisabled,
+          ]}
           onPress={handleCapture}
           disabled={isCapturing}
           testID="camera-capture-button"
-        />
-        <PrimaryButton
-          label="Close"
-          onPress={() => navigation.goBack()}
-          testID="camera-close-button"
-        />
+        >
+          <View style={styles.captureButtonInner} />
+        </Pressable>
+        {isCapturing ? (
+          <Text style={styles.captureHintText}>Capturing...</Text>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -212,48 +265,108 @@ const styles = StyleSheet.create({
   },
   permissionContainer: {
     flex: 1,
-    padding: 20,
+    padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  permissionButton: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  permissionButtonText: {
+    color: colors.white,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  fullscreenContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  floatingTopControls: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    position: 'absolute',
+    left: 0,
+    right: spacing.md,
+    zIndex: 2,
+  },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
     color: colors.primary,
-    marginBottom: 8,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   caption: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     color: colors.textPrimary,
     textAlign: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  previewContainer: {
-    flex: 1,
-    margin: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
   },
   camera: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
-  infoContainer: {
-    paddingHorizontal: 16,
+  floatingInfoContainer: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: 116,
+    zIndex: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   infoText: {
-    color: colors.textPrimary,
-    fontSize: 14,
+    color: colors.white,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
   },
-  controls: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+  floatingBottomControls: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    alignItems: 'center',
+  },
+  captureButton: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    borderWidth: 6,
+    borderColor: colors.white,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  captureButtonDisabled: {
+    opacity: 0.6,
+  },
+  captureButtonInner: {
+    width: 66,
+    height: 66,
+    borderRadius: 35,
+    backgroundColor: colors.primary,
+  },
+  captureHintText: {
+    marginTop: spacing.xs,
+    color: colors.white,
+    fontSize: fontSize.sm,
   },
   errorText: {
     color: colors.danger,
-    fontSize: 14,
-    marginTop: 8,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+  },
+  errorOverlayText: {
+    color: '#FEE2E2',
+    fontSize: fontSize.sm,
+    marginTop: spacing.xxs,
     textAlign: 'center',
   },
 });

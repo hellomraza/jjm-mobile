@@ -8,6 +8,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { useAuth } from '../hooks/useAuth';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
+import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
 import { loginValidationSchema } from '../validation/loginValidationSchema';
 
 type LoginNavigationProp = NativeStackNavigationProp<
@@ -20,10 +21,15 @@ export function LoginScreen() {
   const { loginMutation } = useAuth();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>JJM Employee Login</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Login</Text>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle} />
+            <Text style={styles.missionText}>Jal Jeevan Mission</Text>
+          </View>
+        </View>
         <Formik
           initialValues={{
             email: '',
@@ -70,7 +76,7 @@ export function LoginScreen() {
             const submitError = typeof status === 'string' ? status : '';
 
             return (
-              <>
+              <View>
                 <FormTextInput
                   label="Email"
                   value={values.email}
@@ -93,13 +99,15 @@ export function LoginScreen() {
                   errorMessage={passwordError}
                   testID="login-password-input"
                 />
-
-                <PrimaryButton
-                  label="Login"
-                  onPress={handleSubmit}
-                  loading={isSubmitting || loginMutation.isPending}
-                  testID="login-submit-button"
-                />
+                <View style={styles.buttonContainer}>
+                  <PrimaryButton
+                    label="Login"
+                    onPress={handleSubmit}
+                    loading={isSubmitting || loginMutation.isPending}
+                    testID="login-submit-button"
+                    customStyles={styles.loginButton}
+                  />
+                </View>
 
                 {submitError ? (
                   <Text
@@ -109,7 +117,7 @@ export function LoginScreen() {
                     {submitError}
                   </Text>
                 ) : null}
-              </>
+              </View>
             );
           }}
         </Formik>
@@ -121,31 +129,51 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.secondaryBackground,
-    padding: 16,
+    backgroundColor: colors.primary,
+    padding: spacing.md,
     justifyContent: 'center',
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.divider,
-    padding: 16,
+    padding: spacing.xl,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: spacing.lg,
+  },
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logoCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    marginBottom: spacing.xs,
+  },
+  missionText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.primary,
-    marginBottom: 8,
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing.xs,
   },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginBottom: 16,
+  buttonContainer: {
+    alignSelf: 'flex-start',
+  },
+  loginButton: {
+    paddingHorizontal: spacing.xxxl,
   },
   errorText: {
-    marginTop: 12,
+    marginTop: spacing.sm,
     color: colors.danger,
-    fontSize: 14,
+    fontSize: fontSize.sm,
   },
 });

@@ -1,22 +1,46 @@
 import React from 'react';
+import { FlatList } from 'react-native';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { WorkItemListScreen } from './WorkItemListScreen';
 
 const mockNavigate = jest.fn();
+const mockReplace = jest.fn();
+const mockLogout = jest.fn();
 const mockUseWorkItems = jest.fn();
+const mockUseUser = jest.fn();
+const mockRefetchWorkItems = jest.fn();
+const mockRefetchUser = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({ navigate: mockNavigate, replace: mockReplace }),
+}));
+
+jest.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({
+    logout: mockLogout,
+  }),
 }));
 
 jest.mock('../hooks/useWorkItems', () => ({
   useWorkItems: () => mockUseWorkItems(),
 }));
 
+jest.mock('../hooks/useUser', () => ({
+  useUser: () => mockUseUser(),
+}));
+
 describe('WorkItemListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLogout.mockResolvedValue(undefined);
+    mockRefetchWorkItems.mockResolvedValue(undefined);
+    mockRefetchUser.mockResolvedValue(undefined);
+    mockUseUser.mockReturnValue({
+      data: null,
+      refetch: mockRefetchUser,
+      isRefetching: false,
+    });
   });
 
   async function renderScreen() {
@@ -34,10 +58,14 @@ describe('WorkItemListScreen', () => {
       data: undefined,
       isLoading: true,
       isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
-    expect(root.findByProps({ testID: 'work-items-loading-text' })).toBeTruthy();
+    expect(
+      root.findByProps({ testID: 'work-items-loading-text' }),
+    ).toBeTruthy();
   });
 
   it('shows error state', async () => {
@@ -45,6 +73,8 @@ describe('WorkItemListScreen', () => {
       data: undefined,
       isLoading: false,
       isError: true,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -56,6 +86,8 @@ describe('WorkItemListScreen', () => {
       data: [],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
@@ -93,17 +125,97 @@ describe('WorkItemListScreen', () => {
       ],
       isLoading: false,
       isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
     });
 
     const root = await renderScreen();
 
     act(() => {
-      root.findByProps({ testID: 'work-item-card-work-item-1' }).props.onPress();
+      root
+        .findByProps({ testID: 'work-item-card-work-item-1' })
+        .props.onPress();
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('WorkItemDetails', {
       workItemId: 'work-item-1',
       title: 'Install Pipeline — Block A',
     });
+  });
+
+  it('logs out and navigates to login on logout press', async () => {
+    mockUseWorkItems.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
+    });
+
+    const root = await renderScreen();
+
+    await act(async () => {
+      root.findByProps({ testID: 'work-items-menu-button' }).props.onPress();
+    });
+
+    await act(async () => {
+      await root
+        .findByProps({ testID: 'work-items-logout-button' })
+        .props.onPress();
+    });
+
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('Login');
+  });
+
+  it('shows employee name in header', async () => {
+    mockUseWorkItems.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
+    });
+    mockUseUser.mockReturnValue({
+      data: {
+        id: 'user-1',
+        code: 'EMP001',
+        email: 'employee@jjm.in',
+        name: 'Raza Employee',
+        role: 'EM',
+        district_id: null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-02T00:00:00Z',
+      },
+      refetch: mockRefetchUser,
+      isRefetching: false,
+    });
+
+    const root = await renderScreen();
+    const employeeName = root.findByProps({
+      testID: 'work-items-employee-name',
+    });
+
+    expect(employeeName.props.children).toBe('Raza Employee');
+  });
+
+  it('refreshes work items and user profile on pull-to-refresh', async () => {
+    mockUseWorkItems.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
+    });
+
+    const root = await renderScreen();
+    const flatList = root.findByType(FlatList);
+
+    await act(async () => {
+      await flatList.props.onRefresh();
+    });
+
+    expect(mockRefetchWorkItems).toHaveBeenCalledTimes(1);
+    expect(mockRefetchUser).toHaveBeenCalledTimes(1);
   });
 });

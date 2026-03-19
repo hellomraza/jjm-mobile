@@ -119,8 +119,8 @@ export interface WorkItemComponentResponseDto {
   id: string;
   work_item_id: string;
   component_id: string;
-  quantity?: number;
-  progress: number;
+  quantity?: string;
+  progress: string;
   remarks?: unknown | null;
   status: WorkItemComponentStatus;
   approved_photo_id?: unknown | null;
