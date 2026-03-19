@@ -73,7 +73,7 @@ export function WorkItemDetailsScreen() {
   } = useUserById(workItem?.contractor_id);
 
   const handleRefresh = () => {
-    void Promise.allSettled([
+    Promise.allSettled([
       refetchWorkItem(),
       refetchComponents(),
       refetchDistrict(),
@@ -145,32 +145,68 @@ export function WorkItemDetailsScreen() {
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
       >
+        {/* Header Card with Title and Status */}
+        <View style={styles.headerCard}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{workItem.title || title}</Text>
+            <StatusBadge status={workItem.status} />
+          </View>
+          <Text style={styles.workCode}>{workItem.work_code}</Text>
+        </View>
+
+        {/* Work Progress Card */}
         <View style={styles.card}>
-          <Text style={styles.title}>{workItem.title || title}</Text>
-          <Text style={styles.subtitle}>Code: {workItem.work_code}</Text>
+          <Text style={styles.sectionTitle}>Work Progress</Text>
+          <View style={styles.progressContainer}>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.min(
+                      workItem.progress_percentage || 0,
+                      100,
+                    )}%`,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {workItem.progress_percentage || 0}% Complete
+            </Text>
+          </View>
+        </View>
 
-          <SectionTitle label="Description" />
-          <Text style={styles.bodyText}>{workItem.description || 'N/A'}</Text>
+        {/* Description Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.descriptionText}>
+            {workItem.description || 'No description available'}
+          </Text>
+        </View>
 
-          <SectionTitle label="Location" />
+        {/* Location Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Location</Text>
           <DetailRow label="District" value={districtDisplay} />
           <DetailRow label="Block" value={blockDisplay} />
-          <DetailRow label="Panchayat" value={panchayatDisplay} />
+          <DetailRow label="Panchayat" value={panchayatDisplay} last />
+        </View>
 
-          <SectionTitle label="Contractor" />
+        {/* Contractor Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Contractor</Text>
           <DetailRow label="Name / ID" value={contractorDisplay} />
           {contractor?.email ? (
-            <DetailRow label="Email" value={contractor.email} />
-          ) : null}
+            <DetailRow label="Email" value={contractor.email} last />
+          ) : (
+            <View style={styles.detailRow} />
+          )}
+        </View>
 
-          <SectionTitle label="Work Status" />
-          <DetailRow label="Current Status" value={workItem.status} />
-          <DetailRow
-            label="Progress"
-            value={`${workItem.progress_percentage}%`}
-          />
-
-          <SectionTitle label="Component Status" />
+        {/* Component Status Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Component Status</Text>
           {isComponentsLoading ? (
             <Text
               style={styles.bodyText}
@@ -186,27 +222,52 @@ export function WorkItemDetailsScreen() {
           ) : null}
           {!isComponentsLoading && !isComponentsError ? (
             <>
-              <DetailRow
-                label="Total Components"
-                value={String(componentCount)}
-              />
-              <DetailRow
-                label="Completed"
-                value={String(completedCount)}
-                testID="component-completed-count"
-              />
-              <DetailRow
-                label="Pending"
-                value={String(pendingCount)}
-                testID="component-pending-count"
-              />
+              <View style={styles.statsContainer}>
+                <StatCard
+                  label="Total"
+                  value={componentCount}
+                  color={colors.primary}
+                />
+                <StatCard
+                  label="Completed"
+                  value={completedCount}
+                  color="#10B981"
+                  testID="component-completed-count"
+                />
+                <StatCard
+                  label="Pending"
+                  value={pendingCount}
+                  color="#F59E0B"
+                  testID="component-pending-count"
+                />
+              </View>
 
-              {Object.entries(componentStatusCounts).map(([status, count]) => (
-                <DetailRow key={status} label={status} value={String(count)} />
-              ))}
+              {Object.keys(componentStatusCounts).length > 0 && (
+                <View style={styles.statusBreakdown}>
+                  <Text style={styles.breakdownTitle}>Breakdown</Text>
+                  {Object.entries(componentStatusCounts).map(
+                    ([status, count]) => (
+                      <DetailRow
+                        key={status}
+                        label={status}
+                        value={String(count)}
+                        last={
+                          status ===
+                          Object.keys(componentStatusCounts)[
+                            Object.keys(componentStatusCounts).length - 1
+                          ]
+                        }
+                      />
+                    ),
+                  )}
+                </View>
+              )}
             </>
           ) : null}
+        </View>
 
+        {/* Action Button */}
+        <View style={styles.buttonContainer}>
           <PrimaryButton
             label="View Components"
             onPress={() =>
@@ -224,23 +285,74 @@ export function WorkItemDetailsScreen() {
   );
 }
 
-function SectionTitle({ label }: { label: string }) {
-  return <Text style={styles.sectionTitle}>{label}</Text>;
-}
-
 function DetailRow({
   label,
   value,
   testID,
+  last = false,
 }: {
   label: string;
   value: string;
   testID?: string;
+  last?: boolean;
 }) {
   return (
-    <View style={styles.detailRow} testID={testID}>
+    <View
+      style={[styles.detailRow, last && styles.detailRowLast]}
+      testID={testID}
+    >
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  let badgeColor = '#6B7280'; // default gray
+  let textColor = '#FFFFFF';
+
+  if (
+    status.toLowerCase().includes('completed') ||
+    status.toLowerCase().includes('approved')
+  ) {
+    badgeColor = '#10B981'; // green
+  } else if (
+    status.toLowerCase().includes('pending') ||
+    status.toLowerCase().includes('in progress')
+  ) {
+    badgeColor = '#F59E0B'; // amber
+  } else if (
+    status.toLowerCase().includes('rejected') ||
+    status.toLowerCase().includes('failed')
+  ) {
+    badgeColor = '#EF4444'; // red
+  }
+
+  return (
+    <View style={[styles.statusBadge, { backgroundColor: badgeColor }]}>
+      <Text style={[styles.statusBadgeText, { color: textColor }]}>
+        {status}
+      </Text>
+    </View>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  color,
+  testID,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  testID?: string;
+}) {
+  return (
+    <View style={styles.statCard} testID={testID}>
+      <View style={[styles.statIcon, { backgroundColor: color }]} />
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -261,52 +373,112 @@ function toNumericId(value: string | number | undefined) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: spacing.md,
+    backgroundColor: '#F9FAFB',
   },
   scrollContent: {
-    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxl,
   },
-  card: {
-    borderRadius: radius.md,
+
+  /* Header Card */
+  headerCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  title: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: fontSize.md,
-    color: colors.textPrimary,
-    marginBottom: spacing.xxs,
-  },
-  caption: {
-    fontSize: fontSize.sm,
-    color: colors.textPrimary,
+  titleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: spacing.sm,
   },
-  sectionTitle: {
-    fontSize: fontSize.md,
+  title: {
+    fontSize: fontSize.xxxl,
     color: colors.primary,
-    fontWeight: fontWeight.semibold,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xxs,
+    fontWeight: fontWeight.bold,
+    flex: 1,
+    marginRight: spacing.md,
   },
-  bodyText: {
+  workCode: {
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.medium,
+    letterSpacing: 0.5,
+    marginTop: spacing.sm,
+  },
+
+  /* Standard Card */
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  /* Section Title */
+  sectionTitle: {
+    fontSize: fontSize.lg,
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing.md,
+  },
+
+  /* Progress Section */
+  progressContainer: {
+    gap: spacing.md,
+  },
+  progressTrack: {
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+  },
+  progressText: {
     fontSize: fontSize.sm,
     color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
   },
+
+  /* Description */
+  descriptionText: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    lineHeight: 20,
+  },
+
+  /* Detail Row */
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.xxs,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
+    borderBottomColor: '#F3F4F6',
+  },
+  detailRowLast: {
+    borderBottomWidth: 0,
   },
   detailLabel: {
     fontSize: fontSize.sm,
-    color: colors.textPrimary,
+    color: '#6B7280',
     fontWeight: fontWeight.medium,
     flex: 1,
     marginRight: spacing.sm,
@@ -314,6 +486,79 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: fontSize.sm,
     color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
     textAlign: 'right',
+  },
+
+  /* Status Badge */
+  statusBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusBadgeText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.3,
+  },
+
+  /* Stats Container */
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  statIcon: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: spacing.sm,
+  },
+  statValue: {
+    fontSize: fontSize.lg,
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing.xxs,
+  },
+  statLabel: {
+    fontSize: fontSize.xs,
+    color: '#6B7280',
+    fontWeight: fontWeight.medium,
+  },
+
+  /* Status Breakdown */
+  statusBreakdown: {
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingTop: spacing.md,
+  },
+  breakdownTitle: {
+    fontSize: fontSize.sm,
+    color: '#6B7280',
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.sm,
+  },
+
+  /* Button Container */
+  buttonContainer: {
+    marginBottom: spacing.lg,
+  },
+
+  /* Utility Styles */
+  bodyText: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
   },
 });
