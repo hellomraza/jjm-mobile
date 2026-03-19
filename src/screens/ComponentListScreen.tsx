@@ -45,32 +45,53 @@ export function ComponentListScreen() {
     item,
   }: {
     item: NonNullable<typeof components>[number];
-  }) => (
-    <Pressable
-      style={styles.row}
-      testID={`component-row-${item.id}`}
-      onPress={() =>
-        navigation.navigate('UploadPhoto', {
-          workItemId,
-          componentId: item.id,
-          componentName: item.component?.name ?? 'Component',
-        })
-      }
-    >
-      <View style={styles.rowHeader}>
-        <Text style={styles.componentName}>
-          {item.component?.name ?? 'Unnamed Component'}
-        </Text>
-        <Text style={styles.status}>{item.status}</Text>
-      </View>
-      <Text style={styles.meta}>
-        Progress: {formatProgress(item.progress, item.quantity)}
-      </Text>
-      {typeof item.quantity === 'number' ? (
-        <Text style={styles.meta}>Quantity: {item.quantity}</Text>
-      ) : null}
-    </Pressable>
-  );
+  }) => {
+    const progressPercent = getProgressPercent(item.progress, item.quantity);
+
+    return (
+      <Pressable
+        style={styles.row}
+        testID={`component-row-${item.id}`}
+        onPress={() =>
+          navigation.navigate('UploadPhoto', {
+            workItemId,
+            componentId: item.id,
+            componentName: item.component?.name ?? 'Component',
+          })
+        }
+      >
+        <View style={styles.rowHeader}>
+          <Text style={styles.componentName}>
+            {item.component?.name ?? 'Unnamed Component'}
+          </Text>
+          <Text style={styles.status}>{item.status}</Text>
+        </View>
+
+        <View style={styles.progressHeader}>
+          <Text style={styles.meta}>
+            Progress: {formatProgress(item.progress, item.quantity)}
+          </Text>
+          <Text style={styles.progressPercentText}>
+            {Math.round(progressPercent)}%
+          </Text>
+        </View>
+
+        <View
+          style={styles.progressTrack}
+          testID={`component-progress-track-${item.id}`}
+        >
+          <View
+            style={[styles.progressFill, { width: `${progressPercent}%` }]}
+            testID={`component-progress-fill-${item.id}`}
+          />
+        </View>
+
+        {typeof item.quantity === 'number' ? (
+          <Text style={styles.meta}>Quantity: {item.quantity}</Text>
+        ) : null}
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
@@ -161,5 +182,29 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: fontSize.sm,
     color: colors.textPrimary,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.xxs,
+    marginBottom: spacing.xxs,
+  },
+  progressPercentText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+  },
+  progressTrack: {
+    height: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.divider,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
   },
 });

@@ -99,6 +99,13 @@ describe('ComponentListScreen', () => {
 
     const root = await renderScreen();
 
+    expect(
+      root.findByProps({ testID: 'component-progress-track-component-1' }),
+    ).toBeTruthy();
+    expect(
+      root.findByProps({ testID: 'component-progress-fill-component-1' }),
+    ).toBeTruthy();
+
     act(() => {
       root.findByProps({ testID: 'component-row-component-1' }).props.onPress();
     });
