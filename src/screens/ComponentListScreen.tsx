@@ -13,12 +13,26 @@ type ComponentListNavigationProp = NativeStackNavigationProp<
   'ComponentList'
 >;
 
-function formatProgress(progress: number, quantity?: number) {
-  if (typeof quantity === 'number') {
-    return `${progress} / ${quantity}`;
+function formatProgress(progress: string, quantity?: string) {
+  const progressNum = parseFloat(progress);
+  const quantityNum = quantity ? parseFloat(quantity) : undefined;
+
+  if (typeof quantityNum === 'number' && quantityNum > 0) {
+    return `${progressNum} / ${quantityNum}`;
   }
 
-  return `${progress}`;
+  return progress;
+}
+
+function getProgressPercent(progress: string, quantity?: string) {
+  const progressNum = parseFloat(progress);
+  const quantityNum = quantity ? parseFloat(quantity) : undefined;
+
+  if (typeof quantityNum === 'number' && quantityNum > 0) {
+    return Math.max(0, Math.min(100, (progressNum / quantityNum) * 100));
+  }
+
+  return Math.max(0, Math.min(100, progressNum));
 }
 
 export function ComponentListScreen() {
