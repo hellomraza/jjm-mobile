@@ -4,6 +4,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { CameraScreen } from './CameraScreen';
 
 const mockNavigate = jest.fn();
+const mockReplace = jest.fn();
 const mockGoBack = jest.fn();
 const mockRequestCameraPermission = jest.fn();
 const mockGetLocationPermissionStatus = jest.fn();
@@ -16,6 +17,7 @@ jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => ({
     navigate: mockNavigate,
+    replace: mockReplace,
     goBack: mockGoBack,
   }),
   useRoute: () => ({
@@ -150,14 +152,14 @@ describe('CameraScreen', () => {
     alertSpy.mockRestore();
   });
 
-  it('captures photo and navigates back to upload screen with gps metadata', async () => {
+  it('captures photo and replaces camera with upload screen using gps metadata', async () => {
     const root = await renderScreen();
 
     await act(async () => {
       root.findByProps({ testID: 'camera-capture-button' }).props.onPress();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('UploadPhoto', {
+    expect(mockReplace).toHaveBeenCalledWith('UploadPhoto', {
       workItemId: 'work-item-1',
       componentId: 'component-1',
       componentName: 'Pumping Mains',
@@ -166,6 +168,7 @@ describe('CameraScreen', () => {
       latitude: 26.9124,
       longitude: 75.7873,
     });
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('goes back on back button press', async () => {

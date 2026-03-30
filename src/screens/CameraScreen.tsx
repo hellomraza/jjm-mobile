@@ -113,7 +113,7 @@ export function CameraScreen() {
       const photo = await cameraRef.current.takePhoto();
       const gps = extractGpsMetadata(photo);
 
-      navigation.navigate('UploadPhoto', {
+      navigation.replace('UploadPhoto', {
         workItemId,
         componentId,
         componentName,
@@ -147,28 +147,35 @@ export function CameraScreen() {
   if (!hasPermission) {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="camera-back-button"
+          icon={<Icon name="cross" size={20} color={colors.primary} />}
+        />
         <View style={styles.permissionContainer}>
-          <BackButton
-            onPress={() => navigation.goBack()}
-            testID="camera-back-button"
-            icon={<Icon name="cross" size={20} color={colors.primary} />}
-          />
-          <Text style={styles.title}>Camera Permission Required</Text>
-          <Text style={styles.caption}>
-            Please allow camera access to take component photos.
-          </Text>
-          {errorMessage ? (
-            <Text style={styles.errorText} testID="camera-error-text">
-              {errorMessage}
+          <View style={styles.permissionCard}>
+            <View style={styles.permissionIconWrap}>
+              <Icon name="camera" size={28} color={colors.primary} />
+            </View>
+            <Text style={styles.title}>Camera Permission Required</Text>
+            <Text style={styles.caption}>
+              Please allow camera access to take component photos.
             </Text>
-          ) : null}
-          <Pressable
-            style={styles.permissionButton}
-            onPress={requestPermissions}
-            testID="camera-request-permission-button"
-          >
-            <Text style={styles.permissionButtonText}>Grant Camera Access</Text>
-          </Pressable>
+            {errorMessage ? (
+              <Text style={styles.errorText} testID="camera-error-text">
+                {errorMessage}
+              </Text>
+            ) : null}
+            <Pressable
+              style={styles.permissionButton}
+              onPress={requestPermissions}
+              testID="camera-request-permission-button"
+            >
+              <Text style={styles.permissionButtonText}>
+                Grant Camera Access
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -183,10 +190,15 @@ export function CameraScreen() {
             testID="camera-back-button"
             icon={<Icon name="cross" size={20} color={colors.primary} />}
           />
-          <Text style={styles.title}>Camera Unavailable</Text>
-          <Text style={styles.caption}>
-            No compatible camera device was found.
-          </Text>
+          <View style={styles.permissionCard}>
+            <View style={styles.permissionIconWrap}>
+              <Icon name="camera" size={28} color={colors.primary} />
+            </View>
+            <Text style={styles.title}>Camera Unavailable</Text>
+            <Text style={styles.caption}>
+              No compatible camera device was found.
+            </Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -205,24 +217,36 @@ export function CameraScreen() {
       />
 
       <View
-        style={[styles.floatingTopControls, { top: spacing.sm + insets.top }]}
+        style={[styles.floatingTopControls, { top: spacing.md + insets.top }]}
       >
         <BackButton
           onPress={() => navigation.goBack()}
           testID="camera-back-button"
           icon={<Icon name="cross" size={30} color={colors.primary} />}
         />
-        <BackButton
+        <Pressable
+          style={styles.floatingActionButton}
           onPress={toggleTorch}
           testID="camera-flash-button"
-          icon={
-            <Icon
-              name="flash"
-              size={26}
-              color={torch === 'off' ? colors.textPrimary : colors.torchOn}
-            />
-          }
-        />
+        >
+          <Icon
+            name="flash"
+            size={26}
+            color={torch === 'off' ? colors.textPrimary : colors.torchOn}
+          />
+        </Pressable>
+      </View>
+
+      <View
+        style={[styles.floatingMetaContainer, { top: spacing.md + insets.top }]}
+      >
+        <Text numberOfLines={1} style={styles.metaPillText}>
+          {componentName}
+        </Text>
+        <View style={styles.dotSeparator} />
+        <Text style={styles.metaPillText}>
+          GPS {hasLocationPermission ? 'On' : 'Off'}
+        </Text>
       </View>
 
       {/* <View style={styles.floatingInfoContainer}>
@@ -250,6 +274,9 @@ export function CameraScreen() {
         >
           <View style={styles.captureButtonInner} />
         </Pressable>
+        {!isCapturing ? (
+          <Text style={styles.captureHintText}>Tap to capture</Text>
+        ) : null}
         {isCapturing ? (
           <Text style={styles.captureHintText}>Capturing...</Text>
         ) : null}
@@ -262,12 +289,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondaryBackground,
+    paddingTop: spacing.md,
   },
   permissionContainer: {
     flex: 1,
     padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  permissionCard: {
+    width: '100%',
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    padding: spacing.lg,
+    alignItems: 'center',
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  permissionIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.secondaryBackground,
+    marginBottom: spacing.sm,
   },
   permissionButton: {
     marginTop: spacing.md,
@@ -293,6 +344,41 @@ const styles = StyleSheet.create({
     left: 0,
     right: spacing.md,
     zIndex: 2,
+  },
+  floatingActionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  floatingMetaContainer: {
+    position: 'absolute',
+    left: spacing.md * 2 + 40,
+    right: spacing.md * 2 + 40,
+    height: 40,
+    zIndex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xxs,
+  },
+  metaPillText: {
+    color: colors.white,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+  },
+  dotSeparator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginHorizontal: spacing.xs,
+    backgroundColor: colors.white,
   },
   title: {
     fontSize: fontSize.xl,
@@ -357,6 +443,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     color: colors.white,
     fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
   },
   errorText: {
     color: colors.danger,
