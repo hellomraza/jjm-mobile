@@ -45,8 +45,18 @@ jobs:
           key_file="android/app/my-release-key.keystore"
           b64_cleaned="$(printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '[:space:]')"
 
+          if [ -z "$b64_cleaned" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 is empty or missing."
+            exit 1
+          fi
+
           if ! printf '%s' "$b64_cleaned" | base64 --decode > "$key_file"; then
             printf '%s' "$b64_cleaned" | openssl base64 -d -A -out "$key_file"
+          fi
+
+          if [ ! -s "$key_file" ]; then
+            echo "Decoded keystore is empty. Verify ANDROID_KEYSTORE_BASE64 secret value."
+            exit 1
           fi
 
           file "$key_file"
