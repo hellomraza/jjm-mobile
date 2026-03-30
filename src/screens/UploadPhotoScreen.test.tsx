@@ -224,8 +224,8 @@ describe('UploadPhotoScreen', () => {
     expect(mockMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         photoUrl: 'https://res.cloudinary.com/demo/image/upload/photo.jpg',
-        workItemId: 'work-item-1',
-        componentId: 'component-1',
+        work_item_id: 'work-item-1',
+        component_id: 'component-1',
         progress: 75,
       }),
       expect.any(Object),
