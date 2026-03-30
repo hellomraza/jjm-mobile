@@ -1,14 +1,27 @@
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import api from '../api/client';
-import { componentsQueryKey } from './useComponents';
 import type {
   GetComponentPhotosResponse,
   PhotoResponseDto,
   UploadComponentPhotoResponse,
 } from '../api/responseTypes';
+import { componentsQueryKey } from './useComponents';
 
 export type ComponentPhoto = PhotoResponseDto;
-export type UploadPhotoPayload = Record<string, unknown>;
+export interface UploadPhotoPayload {
+  photoUrl: string;
+  work_item_id: string;
+  component_id: string;
+  progress: number;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+}
 
 export const componentPhotosQueryKey = (componentId: string) =>
   ['componentPhotos', componentId] as const;
@@ -24,16 +37,16 @@ export async function fetchComponentPhotos(
 }
 
 export async function uploadComponentPhoto(
-  componentId: string,
   payload: UploadPhotoPayload,
 ): Promise<UploadComponentPhotoResponse> {
   const response = await api.post<UploadComponentPhotoResponse>(
-    `/components/${componentId}/photos`,
-    payload,
+    `/components/${payload.component_id}/photos-url`,
     {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      progress: payload.progress.toString(),
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      timestamp: payload.timestamp,
+      photoUrl: payload.photoUrl,
     },
   );
 
@@ -59,12 +72,14 @@ export function invalidatePhotoUploadQueries(
   });
 }
 
-export function useUploadPhotoMutation(workItemId: string, componentId: string) {
+export function useUploadPhotoMutation(
+  workItemId: string,
+  componentId: string,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: UploadPhotoPayload) =>
-      uploadComponentPhoto(componentId, payload),
+    mutationFn: (payload: UploadPhotoPayload) => uploadComponentPhoto(payload),
     onSuccess: () => {
       invalidatePhotoUploadQueries(queryClient, workItemId, componentId);
     },

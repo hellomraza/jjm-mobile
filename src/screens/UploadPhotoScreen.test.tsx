@@ -9,8 +9,13 @@ const mockMutate = jest.fn();
 const mockUseUploadPhotoMutation = jest.fn();
 const mockUseComponents = jest.fn();
 const mockGetCurrentPosition = jest.fn();
+const mockRequestAuthorization = jest.fn();
+const mockCompressImageForUpload = jest.fn();
+const mockUploadToCloudinary = jest.fn();
 
 jest.mock('@react-native-community/geolocation', () => ({
+  requestAuthorization: (success: () => void, error: () => void) =>
+    mockRequestAuthorization(success, error),
   getCurrentPosition: (
     success: (pos: object) => void,
     error: (err: object) => void,
@@ -48,9 +53,21 @@ jest.mock('../hooks/useComponents', () => ({
   useComponents: (...args: unknown[]) => mockUseComponents(...args),
 }));
 
+jest.mock('../utils/imageCompression', () => ({
+  compressImageForUpload: (...args: unknown[]) =>
+    mockCompressImageForUpload(...args),
+}));
+
+jest.mock('../services/cloudinaryUpload', () => ({
+  uploadToCloudinary: (...args: unknown[]) => mockUploadToCloudinary(...args),
+}));
+
 describe('UploadPhotoScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRequestAuthorization.mockImplementation((success: () => void) =>
+      success(),
+    );
     // By default, geolocation resolves immediately with a position
     mockGetCurrentPosition.mockImplementation(
       (success: (pos: object) => void) =>
@@ -71,6 +88,15 @@ describe('UploadPhotoScreen', () => {
       isError: false,
       isSuccess: false,
     });
+    mockCompressImageForUpload.mockResolvedValue({
+      uri: 'file:///tmp/photo-compressed.jpg',
+      type: 'image/jpeg',
+      name: 'photo-compressed.jpg',
+      sizeInBytes: 180000,
+    });
+    mockUploadToCloudinary.mockResolvedValue(
+      'https://res.cloudinary.com/demo/image/upload/photo.jpg',
+    );
     mockUseComponents.mockReturnValue({
       data: [
         {
@@ -187,11 +213,23 @@ describe('UploadPhotoScreen', () => {
       root.findByProps({ testID: 'upload-submit-button' }).props.onPress();
     });
 
+    expect(mockCompressImageForUpload).toHaveBeenCalledWith(
+      'file:///tmp/photo.jpg',
+    );
+    expect(mockUploadToCloudinary).toHaveBeenCalledTimes(1);
     expect(mockUseUploadPhotoMutation).toHaveBeenCalledWith(
       'work-item-1',
       'component-1',
     );
-    expect(mockMutate).toHaveBeenCalledTimes(1);
+    expect(mockMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        photoUrl: 'https://res.cloudinary.com/demo/image/upload/photo.jpg',
+        workItemId: 'work-item-1',
+        componentId: 'component-1',
+        progress: 75,
+      }),
+      expect.any(Object),
+    );
   });
 
   it('shows error text when mutation is in error state', async () => {
