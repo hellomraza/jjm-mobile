@@ -8,6 +8,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
       - name: 📥 Checkout repo
@@ -39,28 +44,52 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res/
 
+      - name: ✅ Validate signing secrets
+        run: |
+          set -euo pipefail
+          echo "ANDROID_KEYSTORE_BASE64 length: ${#ANDROID_KEYSTORE_BASE64}"
+          echo "ANDROID_KEY_ALIAS length: ${#ANDROID_KEY_ALIAS}"
+          echo "ANDROID_KEYSTORE_PASSWORD length: ${#ANDROID_KEYSTORE_PASSWORD}"
+          echo "ANDROID_KEY_PASSWORD length: ${#ANDROID_KEY_PASSWORD}"
+
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "One or more Android signing secrets are missing."
+            echo "If this run is from a forked PR, GitHub does not expose secrets."
+            exit 1
+          fi
+
       - name: 🔐 Decode Keystore
         run: |
           set -euo pipefail
           key_file="android/app/my-release-key.keystore"
-          b64_cleaned="$(printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '[:space:]')"
+          b64_cleaned="$(printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]')"
+
+          if [ -z "$b64_cleaned" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 is empty or missing."
+            exit 1
+          fi
 
           if ! printf '%s' "$b64_cleaned" | base64 --decode > "$key_file"; then
             printf '%s' "$b64_cleaned" | openssl base64 -d -A -out "$key_file"
           fi
 
+          if [ ! -s "$key_file" ]; then
+            echo "Decoded keystore is empty. Verify ANDROID_KEYSTORE_BASE64 secret value."
+            exit 1
+          fi
+
           file "$key_file"
           keytool -list \
             -keystore "$key_file" \
-            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
-            -alias "${{ secrets.ANDROID_KEY_ALIAS }}" >/dev/null
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" >/dev/null
 
       - name: ⚙️ Create gradle.properties
         run: |
           echo "MYAPP_UPLOAD_STORE_FILE=my-release-key.keystore" >> android/gradle.properties
-          echo "MYAPP_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/gradle.properties
-          echo "MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> android/gradle.properties
-          echo "MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
+          echo "MYAPP_UPLOAD_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> android/gradle.properties
+          echo "MYAPP_UPLOAD_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> android/gradle.properties
+          echo "MYAPP_UPLOAD_KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> android/gradle.properties
 
       - name: 🔧 Give gradlew permission
         run: chmod +x android/gradlew
