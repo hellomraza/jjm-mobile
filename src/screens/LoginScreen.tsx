@@ -96,9 +96,9 @@ export function LoginScreen() {
                   onChangeText={handleChange('password')}
                   onBlur={handleBlur('password')}
                   placeholder="Enter password"
-                  secureTextEntry
                   errorMessage={passwordError}
                   testID="login-password-input"
+                  showPasswordToggle
                 />
                 <View style={styles.buttonContainer}>
                   <PrimaryButton
