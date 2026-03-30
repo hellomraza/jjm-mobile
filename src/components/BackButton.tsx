@@ -17,7 +17,12 @@ export function BackButton({
   icon: IconComponent,
 }: BackButtonProps) {
   return (
-    <Pressable style={styles.backButton} onPress={onPress} testID={testID}>
+    <Pressable
+      style={styles.backButton}
+      hitSlop={20}
+      onPress={onPress}
+      testID={testID}
+    >
       {IconComponent ? (
         IconComponent
       ) : (

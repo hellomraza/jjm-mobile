@@ -6,6 +6,7 @@ import {
   type StyleProp,
   StyleSheet,
   Text,
+  type TextStyle,
   View,
   type ViewStyle,
 } from 'react-native';
@@ -45,12 +46,12 @@ function getProgressFillStyle(
 }
 
 function getStickyButtonStyle(insetBottom: number): StyleProp<ViewStyle> {
-  const verticalPadding = (insetBottom + spacing.md) / 2;
+  const verticalPadding = insetBottom + spacing.md;
 
   return {
     marginTop: 0,
     paddingBottom: verticalPadding,
-    paddingTop: verticalPadding,
+    paddingTop: spacing.md,
     borderRadius: 0,
   };
 }
@@ -95,6 +96,26 @@ function getStatusBadgeStyle(
     default:
       return styles.statusBadgeDefault;
   }
+}
+
+function getStatusTextStyle(variant: StatusBadgeVariant): StyleProp<TextStyle> {
+  switch (variant) {
+    case 'approved':
+      return styles.statusBadgeTextApproved;
+    case 'pending':
+      return styles.statusBadgeTextPending;
+    case 'rejected':
+      return styles.statusBadgeTextRejected;
+    default:
+      return styles.statusBadgeTextDefault;
+  }
+}
+
+function getStatusLabel(status: string): string {
+  return status
+    .toLowerCase()
+    .replaceAll('_', ' ')
+    .replace(/^./, char => char.toUpperCase());
 }
 
 function getStatIconStyle(label: string): StyleProp<ViewStyle> {
@@ -200,9 +221,36 @@ export function WorkItemDetailsScreen() {
   if (isWorkItemLoading) {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
-        <Text testID="work-item-details-loading-text">
-          Loading work details...
-        </Text>
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="work-item-details-back-button"
+        />
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          testID="work-item-details-skeleton-list"
+        >
+          <View
+            style={styles.headerCard}
+            testID="work-item-details-skeleton-header"
+          >
+            <View style={styles.skeletonLineLarge} />
+            <View style={styles.skeletonPill} />
+            <View style={styles.skeletonLineSmall} />
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.skeletonLineMedium} />
+            <View style={styles.skeletonProgressTrack} />
+            <View style={styles.skeletonLineSmall} />
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.skeletonLineMedium} />
+            <View style={styles.skeletonLineMedium} />
+            <View style={styles.skeletonLineSmall} />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -387,10 +435,13 @@ function DetailRow({
 function StatusBadge({ status }: { status: string }) {
   const statusVariant = getStatusVariant(status);
   const statusBadgeStyle = getStatusBadgeStyle(statusVariant);
+  const statusTextStyle = getStatusTextStyle(statusVariant);
 
   return (
     <View style={[styles.statusBadge, statusBadgeStyle]}>
-      <Text style={styles.statusBadgeText}>{status}</Text>
+      <Text style={[styles.statusBadgeText, statusTextStyle]}>
+        {getStatusLabel(status)}
+      </Text>
     </View>
   );
 }
@@ -434,24 +485,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: 'column',
+    backgroundColor: colors.secondaryBackground,
+    paddingTop: spacing.md,
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
   },
 
   /* Header Card */
   headerCard: {
     backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
     marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   titleContainer: {
     flexDirection: 'row',
@@ -460,39 +515,40 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   title: {
-    fontSize: fontSize.xxxl,
+    fontSize: fontSize.xl,
     color: colors.primary,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     flex: 1,
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
   },
   workCode: {
     fontSize: fontSize.xs,
     color: colors.textPrimary,
-    fontWeight: fontWeight.medium,
-    letterSpacing: 0.5,
-    marginTop: spacing.sm,
+    fontWeight: fontWeight.semibold,
+    marginTop: spacing.xs,
   },
 
   /* Standard Card */
   card: {
     backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
     marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
 
   /* Section Title */
   sectionTitle: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     color: colors.primary,
-    fontWeight: fontWeight.bold,
-    marginBottom: spacing.md,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.sm,
   },
 
   /* Progress Section */
@@ -500,8 +556,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   progressTrack: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
+    height: 7,
+    backgroundColor: '#E2E7EC',
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
@@ -511,10 +567,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   progressText: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textPrimary,
     fontWeight: fontWeight.semibold,
-    textAlign: 'center',
+    textAlign: 'left',
   },
 
   /* Description */
@@ -554,27 +610,37 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xxs,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   statusBadgeText: {
     fontSize: fontSize.xs,
-    color: colors.white,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.3,
+    fontWeight: fontWeight.semibold,
   },
   statusBadgeApproved: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#EAF8EE',
   },
   statusBadgePending: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FFF7E6',
   },
   statusBadgeRejected: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#FDECEC',
   },
   statusBadgeDefault: {
-    backgroundColor: '#6B7280',
+    backgroundColor: '#EEF1F4',
+  },
+  statusBadgeTextApproved: {
+    color: '#1E8E3E',
+  },
+  statusBadgeTextPending: {
+    color: '#B27A00',
+  },
+  statusBadgeTextRejected: {
+    color: colors.danger,
+  },
+  statusBadgeTextDefault: {
+    color: colors.textPrimary,
   },
 
   /* Stats Container */
@@ -637,7 +703,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     backgroundColor: colors.white,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.divider,
   },
 
   /* Utility Styles */
@@ -647,6 +713,41 @@ const styles = StyleSheet.create({
   },
   viewComponentsButtonText: {
     fontSize: fontSize.md,
+  },
+  skeletonLineLarge: {
+    width: '75%',
+    height: 18,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonLineMedium: {
+    width: '55%',
+    height: 14,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonLineSmall: {
+    width: '40%',
+    height: 12,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.xs,
+  },
+  skeletonPill: {
+    width: '35%',
+    height: 22,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonProgressTrack: {
+    width: '100%',
+    height: 7,
+    borderRadius: radius.pill,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.xs,
   },
 });
 

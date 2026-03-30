@@ -170,7 +170,10 @@ describe('WorkItemDetailsScreen', () => {
     const root = await renderScreen();
 
     expect(
-      root.findByProps({ testID: 'work-item-details-loading-text' }),
+      root.findByProps({ testID: 'work-item-details-skeleton-list' }),
+    ).toBeTruthy();
+    expect(
+      root.findByProps({ testID: 'work-item-details-skeleton-header' }),
     ).toBeTruthy();
   });
 

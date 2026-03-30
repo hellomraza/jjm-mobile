@@ -103,6 +103,7 @@ export function UploadPhotoScreen() {
   const resolvedLongitude =
     typeof longitude === 'number' ? longitude : deviceLocation?.longitude;
   const isBusy = mutation.isPending || uploadStage !== 'idle';
+  const uploadProgressPercent = Math.max(0, Math.min(100, cloudinaryProgress));
 
   const getLoadingLabel = () => {
     if (uploadStage === 'compressing') {
@@ -119,6 +120,8 @@ export function UploadPhotoScreen() {
 
     return 'Submit Photo';
   };
+
+  const isLocked = !isCurrentComponentAllowed;
 
   const navigateToCamera = () => {
     if (!isCurrentComponentAllowed) {
@@ -214,16 +217,16 @@ export function UploadPhotoScreen() {
   if (mutation.isSuccess) {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="upload-back-button"
+        />
         <View style={[styles.scrollContent, styles.centeredContainer]}>
-          <BackButton
-            onPress={() => navigation.goBack()}
-            testID="upload-back-button"
-          />
           <View style={styles.card}>
             <Text style={styles.title} testID="upload-success-text">
               Photo Uploaded!
             </Text>
-            <Text style={styles.caption}>
+            <Text style={styles.subtitle}>
               Your photo has been submitted successfully.
             </Text>
             <PrimaryButton
@@ -243,16 +246,38 @@ export function UploadPhotoScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={{ marginTop: spacing.sm, marginBottom: spacing.md }}>
+        <View style={styles.backButtonRow}>
           <BackButton
             onPress={() => navigation.goBack()}
             testID="upload-back-button"
           />
         </View>
-        <View style={styles.card}>
-          <Text style={styles.title}>Upload Photo</Text>
-          <Text style={styles.subtitle}>{componentName}</Text>
 
+        <View style={styles.headerCard}>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.title}>Upload Photo</Text>
+            <View
+              style={[
+                styles.statusChip,
+                isLocked ? styles.statusChipLocked : styles.statusChipReady,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusChipText,
+                  isLocked
+                    ? styles.statusChipTextLocked
+                    : styles.statusChipTextReady,
+                ]}
+              >
+                {isLocked ? 'Locked' : 'Ready'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.subtitle}>{componentName}</Text>
+        </View>
+
+        <View style={styles.card}>
           {capturedPhotoPath ? (
             <>
               <View style={styles.previewContainer}>
@@ -263,7 +288,7 @@ export function UploadPhotoScreen() {
                   testID="upload-photo-preview"
                 />
               </View>
-              <Text style={styles.caption} testID="upload-captured-photo-path">
+              <Text style={styles.metaText} testID="upload-captured-photo-path">
                 Photo ready: {capturedPhotoPath}
               </Text>
             </>
@@ -282,9 +307,15 @@ export function UploadPhotoScreen() {
 
           {typeof resolvedLatitude === 'number' &&
           typeof resolvedLongitude === 'number' ? (
-            <Text style={styles.caption} testID="upload-photo-location-text">
-              GPS: {resolvedLatitude.toFixed(4)}, {resolvedLongitude.toFixed(4)}
-            </Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>GPS</Text>
+              <Text
+                style={styles.infoValue}
+                testID="upload-photo-location-text"
+              >
+                {resolvedLatitude.toFixed(4)}, {resolvedLongitude.toFixed(4)}
+              </Text>
+            </View>
           ) : locationError ? (
             <Text
               style={styles.captionError}
@@ -293,15 +324,18 @@ export function UploadPhotoScreen() {
               {locationError}
             </Text>
           ) : (
-            <Text style={styles.caption} testID="upload-location-loading-text">
+            <Text style={styles.metaText} testID="upload-location-loading-text">
               Getting location...
             </Text>
           )}
 
           {capturedAt ? (
-            <Text style={styles.caption} testID="upload-photo-time-text">
-              Captured: {new Date(capturedAt).toLocaleString()}
-            </Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Captured</Text>
+              <Text style={styles.infoValue} testID="upload-photo-time-text">
+                {new Date(capturedAt).toLocaleString()}
+              </Text>
+            </View>
           ) : null}
 
           {!isCurrentComponentAllowed ? (
@@ -323,27 +357,46 @@ export function UploadPhotoScreen() {
             testID="upload-progress-input"
           />
 
-          {isBusy ? (
-            <View style={styles.loadingRow} testID="upload-loading-row">
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.caption} testID="upload-loading-text">
-                {getLoadingLabel()}
-              </Text>
-            </View>
-          ) : null}
-
           {uploadError || mutation.isError ? (
             <Text style={styles.errorText} testID="upload-error-text">
               {uploadError ?? 'Upload failed. Please try again.'}
             </Text>
           ) : null}
 
-          <PrimaryButton
-            label={getLoadingLabel()}
+          <Pressable
+            style={[
+              styles.submitButton,
+              (isBusy || !isCurrentComponentAllowed) &&
+                styles.submitButtonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={isBusy || !isCurrentComponentAllowed}
             testID="upload-submit-button"
-          />
+          >
+            {uploadStage === 'uploading' ? (
+              <View
+                style={[
+                  styles.submitButtonProgressFill,
+                  { width: `${uploadProgressPercent}%` },
+                ]}
+                testID="upload-submit-progress-fill"
+              />
+            ) : null}
+
+            {uploadStage === 'compressing' || uploadStage === 'submitting' ? (
+              <ActivityIndicator
+                size="small"
+                color={colors.white}
+                testID="upload-submit-activity-indicator"
+              />
+            ) : null}
+
+            <Text style={styles.submitButtonText} testID="upload-loading-text">
+              {uploadStage === 'uploading'
+                ? `Uploading... ${uploadProgressPercent}%`
+                : getLoadingLabel()}
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -354,17 +407,67 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondaryBackground,
+    paddingTop: spacing.md,
   },
   scrollContent: {
-    // padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.lg,
   },
-  card: {
-    marginHorizontal: spacing.md,
+  backButtonRow: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  headerCard: {
     backgroundColor: colors.white,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.divider,
     padding: spacing.md,
+    marginBottom: spacing.sm,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  statusChip: {
+    borderRadius: radius.sm,
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.xs,
+  },
+  statusChipReady: {
+    backgroundColor: '#EAF8EE',
+  },
+  statusChipLocked: {
+    backgroundColor: '#FDECEC',
+  },
+  statusChipText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+  },
+  statusChipTextReady: {
+    color: '#1E8E3E',
+  },
+  statusChipTextLocked: {
+    color: colors.danger,
+  },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    padding: spacing.md,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   title: {
     fontSize: fontSize.xl,
@@ -375,12 +478,12 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.md,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.xxs,
   },
-  caption: {
+  metaText: {
     fontSize: fontSize.sm,
     color: colors.textPrimary,
-    marginBottom: spacing.xxs,
+    marginBottom: spacing.xs,
   },
   previewContainer: {
     width: '100%',
@@ -422,7 +525,25 @@ const styles = StyleSheet.create({
   captionError: {
     fontSize: fontSize.sm,
     color: colors.danger,
-    marginBottom: spacing.xxs,
+    marginBottom: spacing.xs,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xxs,
+  },
+  infoLabel: {
+    fontSize: fontSize.sm,
+    color: colors.text,
+    fontWeight: fontWeight.medium,
+  },
+  infoValue: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+    flexShrink: 1,
+    textAlign: 'right',
   },
   label: {
     fontSize: fontSize.sm,
@@ -435,6 +556,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.inputBorder,
     borderRadius: radius.sm,
+    backgroundColor: colors.white,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     fontSize: fontSize.md,
@@ -450,7 +572,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    paddingVertical: spacing.xxs,
     marginBottom: spacing.xs,
+  },
+  submitButton: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    minHeight: 48,
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  submitButtonDisabled: {
+    backgroundColor: colors.disabledBackground,
+  },
+  submitButtonProgressFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#0E5A95',
+  },
+  submitButtonText: {
+    color: colors.textOnPrimary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
   },
   sequenceWarning: {
     color: colors.danger,

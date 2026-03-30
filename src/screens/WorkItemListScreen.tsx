@@ -3,6 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { WorkItemStatus } from '../api/responseTypes';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../hooks/useUser';
 import { useWorkItems } from '../hooks/useWorkItems';
@@ -33,8 +34,12 @@ export function WorkItemListScreen() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const employeeName = userProfile?.name || 'Employee Name';
 
+  const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
+
   const handleRefresh = () => {
-    void Promise.allSettled([refetchWorkItems(), refetchUserProfile()]);
+    Promise.allSettled([refetchWorkItems(), refetchUserProfile()]).then(
+      () => undefined,
+    );
   };
 
   const handleLogout = async () => {
@@ -43,28 +48,114 @@ export function WorkItemListScreen() {
     navigation.replace('Login');
   };
 
+  const getStatusStyles = (status: WorkItemStatus) => {
+    if (status === 'COMPLETED') {
+      return {
+        label: 'Completed',
+        textColor: '#1E8E3E',
+        bgColor: '#EAF8EE',
+      };
+    }
+
+    if (status === 'IN_PROGRESS') {
+      return {
+        label: 'In Progress',
+        textColor: '#B27A00',
+        bgColor: '#FFF7E6',
+      };
+    }
+
+    return {
+      label: 'Pending',
+      textColor: colors.textPrimary,
+      bgColor: '#EEF1F4',
+    };
+  };
+
+  const getContractorName = (
+    item: NonNullable<typeof workItems>[number],
+  ): string => {
+    const enrichedContractorName = item.contractor?.name;
+
+    if (enrichedContractorName) {
+      return enrichedContractorName;
+    }
+
+    return item.contractor_id || 'N/A';
+  };
+
   const renderItem = ({
     item,
   }: {
     item: NonNullable<typeof workItems>[number];
-  }) => (
-    <Pressable
-      style={styles.card}
-      testID={`work-item-card-${item.id}`}
-      onPress={() =>
-        navigation.navigate('WorkItemDetails', {
-          workItemId: item.id,
-          title: item.title,
-        })
-      }
-    >
-      <Text style={styles.itemTitle}>{item.title}</Text>
-      <Text style={styles.itemMeta}>Status: {item.status}</Text>
-    </Pressable>
+  }) => {
+    const safeProgress = Math.max(
+      0,
+      Math.min(100, item.progress_percentage ?? 0),
+    );
+    const statusStyles = getStatusStyles(item.status);
+
+    return (
+      <Pressable
+        style={styles.card}
+        testID={`work-item-card-${item.id}`}
+        onPress={() =>
+          navigation.navigate('WorkItemDetails', {
+            workItemId: item.id,
+            title: item.title,
+          })
+        }
+      >
+        <Text numberOfLines={2} style={styles.itemTitle}>
+          {item.title}
+        </Text>
+
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: statusStyles.bgColor },
+          ]}
+        >
+          <Text
+            style={[styles.statusBadgeText, { color: statusStyles.textColor }]}
+          >
+            {statusStyles.label}
+          </Text>
+        </View>
+
+        <Text style={styles.itemLabel}>Overall Progress</Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${safeProgress}%` }]} />
+        </View>
+        <Text style={styles.progressText}>{safeProgress}%</Text>
+
+        <Text style={styles.itemMeta}>
+          Contractor: {getContractorName(item)}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  const renderSkeleton = ({ item }: { item: number }) => (
+    <View style={styles.skeletonCard} testID={`work-item-skeleton-${item}`}>
+      <View style={styles.skeletonTitle} />
+      <View style={styles.skeletonBadge} />
+      <View style={styles.skeletonProgressLine} />
+      <View style={styles.skeletonProgressLineShort} />
+      <View style={styles.skeletonMeta} />
+    </View>
   );
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      {isMenuOpen ? (
+        <Pressable
+          style={styles.menuBackdrop}
+          onPress={() => setIsMenuOpen(false)}
+          testID="work-items-menu-backdrop"
+        />
+      ) : null}
+
       <View style={styles.headerContainer}>
         <View style={styles.headerRow}>
           <Text style={styles.employeeName} testID="work-items-employee-name">
@@ -104,7 +195,16 @@ export function WorkItemListScreen() {
       </View>
 
       {isLoading ? (
-        <Text testID="work-items-loading-text">Loading work items...</Text>
+        <FlatList
+          data={skeletonItems}
+          keyExtractor={item => String(item)}
+          renderItem={renderSkeleton}
+          numColumns={2}
+          scrollEnabled={false}
+          columnWrapperStyle={styles.gridRow}
+          contentContainerStyle={styles.listContent}
+          testID="work-items-skeleton-list"
+        />
       ) : null}
       {isError ? (
         <Text testID="work-items-error-text">Failed to load work items.</Text>
@@ -119,10 +219,13 @@ export function WorkItemListScreen() {
           data={workItems ?? []}
           keyExtractor={item => item.id}
           renderItem={renderItem}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
           onRefresh={handleRefresh}
           refreshing={isRefetchingWorkItems || isRefetchingUserProfile}
           contentContainerStyle={styles.listContent}
           showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
         />
       ) : null}
     </SafeAreaView>
@@ -135,8 +238,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondaryBackground,
     padding: spacing.md,
   },
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+  },
   headerContainer: {
     marginBottom: spacing.sm,
+    zIndex: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -182,10 +290,11 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   card: {
+    flex: 1,
     backgroundColor: colors.white,
     borderRadius: radius.md,
     padding: spacing.md,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
     shadowColor: colors.text,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -201,14 +310,94 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: spacing.lg,
   },
+  gridRow: {
+    gap: spacing.sm,
+  },
   itemTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
+    minHeight: 38,
+    marginBottom: spacing.xs,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: radius.sm,
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  statusBadgeText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+  },
+  itemLabel: {
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
     marginBottom: spacing.xxs,
   },
-  itemMeta: {
-    fontSize: fontSize.sm,
+  progressTrack: {
+    width: '100%',
+    height: 7,
+    backgroundColor: '#E2E7EC',
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+  },
+  progressText: {
+    marginTop: spacing.xxs,
+    marginBottom: spacing.xs,
+    fontSize: fontSize.xs,
     color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+  },
+  itemMeta: {
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
+  },
+  skeletonCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E7ECF1',
+  },
+  skeletonTitle: {
+    height: 16,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonBadge: {
+    width: '45%',
+    height: 18,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonProgressLine: {
+    width: '100%',
+    height: 8,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.xs,
+  },
+  skeletonProgressLineShort: {
+    width: '40%',
+    height: 8,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonMeta: {
+    width: '70%',
+    height: 12,
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
   },
 });

@@ -21,6 +21,8 @@ type ComponentListNavigationProp = NativeStackNavigationProp<
   'ComponentList'
 >;
 
+type StatusVariant = 'approved' | 'pending' | 'rejected' | 'default';
+
 function formatProgress(progress: string, quantity?: string) {
   const progressNum = parseFloat(progress);
   const quantityNum = quantity ? parseFloat(quantity) : undefined;
@@ -43,6 +45,41 @@ function getProgressPercent(progress: string, quantity?: string) {
   return Math.max(0, Math.min(100, progressNum));
 }
 
+function getStatusVariant(status: string): StatusVariant {
+  const normalizedStatus = status.toLowerCase().replaceAll('_', ' ');
+
+  if (
+    normalizedStatus.includes('completed') ||
+    normalizedStatus.includes('approved')
+  ) {
+    return 'approved';
+  }
+
+  if (
+    normalizedStatus.includes('pending') ||
+    normalizedStatus.includes('in progress') ||
+    normalizedStatus.includes('submitted')
+  ) {
+    return 'pending';
+  }
+
+  if (
+    normalizedStatus.includes('rejected') ||
+    normalizedStatus.includes('failed')
+  ) {
+    return 'rejected';
+  }
+
+  return 'default';
+}
+
+function getStatusLabel(status: string): string {
+  return status
+    .toLowerCase()
+    .replaceAll('_', ' ')
+    .replace(/^./, char => char.toUpperCase());
+}
+
 export function ComponentListScreen() {
   const navigation = useNavigation<ComponentListNavigationProp>();
   const route = useRoute<ComponentListRouteProp>();
@@ -54,6 +91,8 @@ export function ComponentListScreen() {
     refetch,
     isRefetching,
   } = useComponents(workItemId);
+
+  const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
 
   const orderedComponents = [...(components ?? [])].sort((a, b) => {
     const orderA = a.component?.order_number ?? Number.MAX_SAFE_INTEGER;
@@ -74,6 +113,7 @@ export function ComponentListScreen() {
     item: NonNullable<typeof components>[number];
   }) => {
     const progressPercent = getProgressPercent(item.progress, item.quantity);
+    const statusVariant = getStatusVariant(item.status);
     const isOutOfOrderLocked =
       !!activeComponentId &&
       item.id !== activeComponentId &&
@@ -100,10 +140,36 @@ export function ComponentListScreen() {
         }}
       >
         <View style={styles.rowHeader}>
-          <Text style={styles.componentName}>
+          <Text numberOfLines={2} style={styles.componentName}>
             {item.component?.name ?? 'Unnamed Component'}
           </Text>
-          <Text style={styles.status}>{item.status}</Text>
+          <View
+            style={[
+              styles.statusChip,
+              statusVariant === 'approved'
+                ? styles.statusChipApproved
+                : statusVariant === 'pending'
+                ? styles.statusChipPending
+                : statusVariant === 'rejected'
+                ? styles.statusChipRejected
+                : styles.statusChipDefault,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                statusVariant === 'approved'
+                  ? styles.statusTextApproved
+                  : statusVariant === 'pending'
+                  ? styles.statusTextPending
+                  : statusVariant === 'rejected'
+                  ? styles.statusTextRejected
+                  : styles.statusTextDefault,
+              ]}
+            >
+              {getStatusLabel(item.status)}
+            </Text>
+          </View>
         </View>
 
         {isOutOfOrderLocked ? (
@@ -116,9 +182,7 @@ export function ComponentListScreen() {
         ) : null}
 
         <View style={styles.progressHeader}>
-          <Text style={styles.meta}>
-            Progress: {formatProgress(item.progress, item.quantity)}
-          </Text>
+          <Text style={styles.metaLabel}>Overall Progress</Text>
           <Text style={styles.progressPercentText}>
             {Math.round(progressPercent)}%
           </Text>
@@ -134,6 +198,10 @@ export function ComponentListScreen() {
           />
         </View>
 
+        <Text style={styles.meta}>
+          Progress: {formatProgress(item.progress, item.quantity)}
+        </Text>
+
         {typeof item.quantity === 'number' ? (
           <Text style={styles.meta}>Quantity: {item.quantity}</Text>
         ) : null}
@@ -141,20 +209,36 @@ export function ComponentListScreen() {
     );
   };
 
+  const renderSkeleton = ({ item }: { item: number }) => (
+    <View style={styles.skeletonRow} testID={`components-skeleton-${item}`}>
+      <View style={styles.skeletonTitle} />
+      <View style={styles.skeletonChip} />
+      <View style={styles.skeletonProgressTrack} />
+      <View style={styles.skeletonMeta} />
+    </View>
+  );
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <BackButton
         onPress={() => navigation.goBack()}
         testID="component-list-back-button"
       />
-      <View style={styles.headerContainer}>
+      <View style={styles.headerCard}>
         <Text style={styles.title}>Components</Text>
         <Text style={styles.subtitle}>{title}</Text>
         <Text style={styles.caption}>Work Code: {work_code}</Text>
       </View>
 
       {isLoading ? (
-        <Text testID="components-loading-text">Loading components...</Text>
+        <FlatList
+          data={skeletonItems}
+          keyExtractor={item => String(item)}
+          renderItem={renderSkeleton}
+          scrollEnabled={false}
+          contentContainerStyle={styles.listContent}
+          testID="components-skeleton-list"
+        />
       ) : null}
       {isError ? (
         <Text testID="components-error-text">Failed to load components.</Text>
@@ -182,10 +266,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondaryBackground,
+    paddingVertical: spacing.md,
   },
-  headerContainer: {
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
+  headerCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.sm,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   title: {
     fontSize: fontSize.xl,
@@ -209,6 +304,8 @@ const styles = StyleSheet.create({
   row: {
     backgroundColor: colors.white,
     borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
     padding: spacing.md,
     marginBottom: spacing.md,
     shadowColor: colors.text,
@@ -223,7 +320,7 @@ const styles = StyleSheet.create({
   rowHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.xs,
   },
   componentName: {
@@ -232,20 +329,55 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
     marginRight: spacing.xs,
+    minHeight: 38,
   },
-  status: {
+  statusChip: {
+    borderRadius: radius.sm,
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.xs,
+  },
+  statusChipApproved: {
+    backgroundColor: '#EAF8EE',
+  },
+  statusChipPending: {
+    backgroundColor: '#FFF7E6',
+  },
+  statusChipRejected: {
+    backgroundColor: '#FDECEC',
+  },
+  statusChipDefault: {
+    backgroundColor: '#EEF1F4',
+  },
+  statusText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
-    color: colors.primary,
+  },
+  statusTextApproved: {
+    color: '#1E8E3E',
+  },
+  statusTextPending: {
+    color: '#B27A00',
+  },
+  statusTextRejected: {
+    color: colors.danger,
+  },
+  statusTextDefault: {
+    color: colors.textPrimary,
   },
   lockedHint: {
     fontSize: fontSize.xs,
     color: colors.danger,
-    marginBottom: spacing.xxs,
+    marginBottom: spacing.xs,
+  },
+  metaLabel: {
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
   },
   meta: {
     fontSize: fontSize.sm,
     color: colors.textPrimary,
+    marginTop: spacing.xxs,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -260,9 +392,9 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   progressTrack: {
-    height: spacing.xs,
+    height: 7,
     borderRadius: radius.pill,
-    backgroundColor: colors.divider,
+    backgroundColor: '#E2E7EC',
     overflow: 'hidden',
     marginBottom: spacing.xs,
   },
@@ -270,5 +402,40 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
+  },
+  skeletonRow: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#E7ECF1',
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  skeletonTitle: {
+    height: 16,
+    width: '70%',
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonChip: {
+    height: 18,
+    width: '35%',
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonProgressTrack: {
+    height: 7,
+    width: '100%',
+    borderRadius: radius.pill,
+    backgroundColor: '#E7ECF1',
+    marginBottom: spacing.sm,
+  },
+  skeletonMeta: {
+    height: 12,
+    width: '50%',
+    borderRadius: radius.sm,
+    backgroundColor: '#E7ECF1',
   },
 });

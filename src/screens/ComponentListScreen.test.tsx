@@ -51,8 +51,9 @@ describe('ComponentListScreen', () => {
     const root = await renderScreen();
 
     expect(
-      root.findByProps({ testID: 'components-loading-text' }),
+      root.findByProps({ testID: 'components-skeleton-list' }),
     ).toBeTruthy();
+    expect(root.findByProps({ testID: 'components-skeleton-0' })).toBeTruthy();
   });
 
   it('shows error state', async () => {
