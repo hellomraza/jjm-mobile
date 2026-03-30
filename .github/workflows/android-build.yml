@@ -41,8 +41,19 @@ jobs:
 
       - name: 🔐 Decode Keystore
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '\n' | base64 -d > android/app/my-release-key.keystore
-          file android/app/my-release-key.keystore
+          set -euo pipefail
+          key_file="android/app/my-release-key.keystore"
+          b64_cleaned="$(printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '[:space:]')"
+
+          if ! printf '%s' "$b64_cleaned" | base64 --decode > "$key_file"; then
+            printf '%s' "$b64_cleaned" | openssl base64 -d -A -out "$key_file"
+          fi
+
+          file "$key_file"
+          keytool -list \
+            -keystore "$key_file" \
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -alias "${{ secrets.ANDROID_KEY_ALIAS }}" >/dev/null
 
       - name: ⚙️ Create gradle.properties
         run: |
