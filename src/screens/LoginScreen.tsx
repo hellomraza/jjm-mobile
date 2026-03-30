@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Formik } from 'formik';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FormTextInput } from '../components/FormTextInput';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
+import { perfectSize } from '../utils/perfectSize';
 import { loginValidationSchema } from '../validation/loginValidationSchema';
 
 type LoginNavigationProp = NativeStackNavigationProp<
@@ -26,7 +27,7 @@ export function LoginScreen() {
         <View style={styles.headerRow}>
           <Text style={styles.title}>Login</Text>
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle} />
+            <Image source={require('../images/logo.png')} style={styles.logo} />
             <Text style={styles.missionText}>Jal Jeevan Mission</Text>
           </View>
         </View>
@@ -133,6 +134,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     justifyContent: 'center',
   },
+  logo: {
+    width: perfectSize(70),
+    height: perfectSize(70),
+    marginBottom: spacing.xs,
+  },
   card: {
     backgroundColor: colors.white,
     borderRadius: radius.lg,
@@ -148,13 +154,6 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-  },
-  logoCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    marginBottom: spacing.xs,
   },
   missionText: {
     fontSize: fontSize.sm,
