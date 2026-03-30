@@ -14,6 +14,8 @@ jobs:
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_UPLOAD_PRESET: ${{ secrets.CLOUDINARY_UPLOAD_PRESET }}
 
     steps:
       - name: 📥 Checkout repo
@@ -35,6 +37,20 @@ jobs:
 
       - name: 📁 Create assets directory
         run: mkdir -p android/app/src/main/assets
+
+      - name: 🧩 Create .env from secrets
+        run: |
+          set -euo pipefail
+
+          if [ -z "$CLOUDINARY_CLOUD_NAME" ] || [ -z "$CLOUDINARY_UPLOAD_PRESET" ]; then
+            echo "Cloudinary secrets are missing."
+            exit 1
+          fi
+
+          cat > .env <<EOF
+          CLOUDINARY_CLOUD_NAME=$CLOUDINARY_CLOUD_NAME
+          CLOUDINARY_UPLOAD_PRESET=$CLOUDINARY_UPLOAD_PRESET
+          EOF
 
       - name: 🏗️ Build JS bundle
         run: |
