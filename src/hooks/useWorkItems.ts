@@ -21,7 +21,9 @@ export const workItemQueryKey = (id: string | number) =>
 // ---------------------------------------------------------------------------
 
 export async function fetchWorkItems(): Promise<WorkItem[]> {
-  const response = await api.get<ListWorkItemsResponse>('/work-items');
+  const response = await api.get<ListWorkItemsResponse>(
+    '/work-items/my-work-items',
+  );
   return response.data.data;
 }
 
