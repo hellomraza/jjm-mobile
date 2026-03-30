@@ -3,6 +3,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -18,8 +19,10 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
 import { useUploadPhotoMutation } from '../hooks/usePhotos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { uploadToCloudinary } from '../services/cloudinaryUpload';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
+import { compressImageForUpload } from '../utils/imageCompression';
 
 type UploadPhotoRouteProp = RouteProp<RootStackParamList, 'UploadPhoto'>;
 type UploadPhotoNavigationProp = NativeStackNavigationProp<
@@ -46,6 +49,11 @@ export function UploadPhotoScreen() {
     longitude: number;
   } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [uploadStage, setUploadStage] = useState<
+    'idle' | 'compressing' | 'uploading' | 'submitting'
+  >('idle');
+  const [cloudinaryProgress, setCloudinaryProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { data: components } = useComponents(workItemId);
   const mutation = useUploadPhotoMutation(workItemId, componentId);
@@ -94,6 +102,23 @@ export function UploadPhotoScreen() {
     typeof latitude === 'number' ? latitude : deviceLocation?.latitude;
   const resolvedLongitude =
     typeof longitude === 'number' ? longitude : deviceLocation?.longitude;
+  const isBusy = mutation.isPending || uploadStage !== 'idle';
+
+  const getLoadingLabel = () => {
+    if (uploadStage === 'compressing') {
+      return 'Compressing...';
+    }
+
+    if (uploadStage === 'uploading') {
+      return `Uploading... ${cloudinaryProgress}%`;
+    }
+
+    if (uploadStage === 'submitting' || mutation.isPending) {
+      return 'Submitting...';
+    }
+
+    return 'Submit Photo';
+  };
 
   const navigateToCamera = () => {
     if (!isCurrentComponentAllowed) {
@@ -111,7 +136,7 @@ export function UploadPhotoScreen() {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const progressValue = parseFloat(progress);
 
     if (!isCurrentComponentAllowed) {
@@ -132,18 +157,58 @@ export function UploadPhotoScreen() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', {
-      uri: capturedPhotoPath,
-      type: 'image/jpeg',
-      name: 'photo.jpg',
-    } as unknown as Blob);
-    formData.append('progress', String(progressValue));
-    formData.append('latitude', String(resolvedLatitude ?? 0));
-    formData.append('longitude', String(resolvedLongitude ?? 0));
-    formData.append('timestamp', capturedAt ?? new Date().toISOString());
+    try {
+      setUploadError(null);
+      setCloudinaryProgress(0);
+      setUploadStage('compressing');
 
-    mutation.mutate(formData as unknown as Record<string, unknown>);
+      const compressedImage = await compressImageForUpload(capturedPhotoPath);
+
+      setUploadStage('uploading');
+      const photoUrl = await uploadToCloudinary(
+        {
+          uri: compressedImage.uri,
+          type: compressedImage.type,
+          name: compressedImage.name,
+        },
+        {
+          onProgress: progressPercent => {
+            setCloudinaryProgress(progressPercent);
+          },
+        },
+      );
+
+      setUploadStage('submitting');
+      mutation.mutate(
+        {
+          photoUrl,
+          work_item_id: workItemId,
+          component_id: componentId,
+          progress: progressValue,
+          latitude: resolvedLatitude ?? 0,
+          longitude: resolvedLongitude ?? 0,
+          timestamp: capturedAt ?? new Date().toISOString(),
+        },
+        {
+          onError: () => {
+            setUploadError(
+              'Failed to submit photo metadata. Please try again.',
+            );
+            setUploadStage('idle');
+          },
+          onSuccess: () => {
+            setUploadStage('idle');
+          },
+        },
+      );
+    } catch (error) {
+      setUploadStage('idle');
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to process image upload. Please try again.',
+      );
+    }
   };
 
   if (mutation.isSuccess) {
@@ -258,16 +323,25 @@ export function UploadPhotoScreen() {
             testID="upload-progress-input"
           />
 
-          {mutation.isError ? (
+          {isBusy ? (
+            <View style={styles.loadingRow} testID="upload-loading-row">
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.caption} testID="upload-loading-text">
+                {getLoadingLabel()}
+              </Text>
+            </View>
+          ) : null}
+
+          {uploadError || mutation.isError ? (
             <Text style={styles.errorText} testID="upload-error-text">
-              Upload failed. Please try again.
+              {uploadError ?? 'Upload failed. Please try again.'}
             </Text>
           ) : null}
 
           <PrimaryButton
-            label={mutation.isPending ? 'Uploading...' : 'Submit Photo'}
+            label={getLoadingLabel()}
             onPress={handleSubmit}
-            disabled={mutation.isPending || !isCurrentComponentAllowed}
+            disabled={isBusy || !isCurrentComponentAllowed}
             testID="upload-submit-button"
           />
         </View>
@@ -370,6 +444,12 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.danger,
     fontSize: fontSize.sm,
+    marginBottom: spacing.xs,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     marginBottom: spacing.xs,
   },
   sequenceWarning: {

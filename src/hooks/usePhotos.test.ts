@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import api from '../api/client';
+import { componentsQueryKey } from './useComponents';
 import type { ComponentPhoto } from './usePhotos';
 import {
   componentPhotosQueryKey,
@@ -7,7 +8,6 @@ import {
   invalidatePhotoUploadQueries,
   uploadComponentPhoto,
 } from './usePhotos';
-import { componentsQueryKey } from './useComponents';
 
 jest.mock('../api/client', () => ({
   __esModule: true,
@@ -111,12 +111,15 @@ describe('usePhotos', () => {
     ).toEqual(mockPhotos);
   });
 
-  it('uploadComponentPhoto calls POST /components/:componentId/photos and returns data', async () => {
+  it('uploadComponentPhoto calls POST /photo/upload-url and returns data', async () => {
     const payload = {
+      photoUrl: 'https://res.cloudinary.com/demo/image/upload/v1/photo.jpg',
+      workItemId: 'work-item-1',
+      componentId: 'component-1',
       progress: 50,
       latitude: 25.5941,
       longitude: 85.1376,
-      image: 'base64-photo',
+      timestamp: '2026-03-16T01:00:00Z',
     };
 
     const uploadedPhoto = {
@@ -135,9 +138,9 @@ describe('usePhotos', () => {
 
     (api.post as jest.Mock).mockResolvedValue({ data: uploadedPhoto });
 
-    const result = await uploadComponentPhoto('component-1', payload);
+    const result = await uploadComponentPhoto(payload);
 
-    expect(api.post).toHaveBeenCalledWith('/components/component-1/photos', payload);
+    expect(api.post).toHaveBeenCalledWith('/photo/upload-url', payload);
     expect(result).toEqual(uploadedPhoto);
   });
 
