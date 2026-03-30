@@ -76,6 +76,7 @@ export interface WorkItemResponseDto {
   payment_amount: number;
   serial_no: number;
   contractor_id: string;
+  contractor?: Contractor;
   latitude: number;
   longitude: number;
   progress_percentage: number;
@@ -153,6 +154,17 @@ export interface LocationResponseDto {
   zone_code?: string;
   district_id?: number;
 }
+
+export type Contractor = {
+  code: string;
+  created_at: string;
+  district_id: number;
+  email: string;
+  id: string;
+  name: string;
+  role: 'CO';
+  updated_at: string;
+};
 
 export type HealthResponse = string;
 

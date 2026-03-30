@@ -64,8 +64,9 @@ describe('WorkItemListScreen', () => {
 
     const root = await renderScreen();
     expect(
-      root.findByProps({ testID: 'work-items-loading-text' }),
+      root.findByProps({ testID: 'work-items-skeleton-list' }),
     ).toBeTruthy();
+    expect(root.findByProps({ testID: 'work-item-skeleton-0' })).toBeTruthy();
   });
 
   it('shows error state', async () => {
@@ -131,6 +132,11 @@ describe('WorkItemListScreen', () => {
 
     const root = await renderScreen();
 
+    expect(
+      root.findByProps({ testID: 'work-item-card-work-item-1' }),
+    ).toBeTruthy();
+    expect(root.findByType(FlatList).props.numColumns).toBe(2);
+
     act(() => {
       root
         .findByProps({ testID: 'work-item-card-work-item-1' })
@@ -141,6 +147,34 @@ describe('WorkItemListScreen', () => {
       workItemId: 'work-item-1',
       title: 'Install Pipeline — Block A',
     });
+  });
+
+  it('closes menu when tapping outside dropdown', async () => {
+    mockUseWorkItems.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchWorkItems,
+      isRefetching: false,
+    });
+
+    const root = await renderScreen();
+
+    await act(async () => {
+      root.findByProps({ testID: 'work-items-menu-button' }).props.onPress();
+    });
+
+    expect(
+      root.findByProps({ testID: 'work-items-menu-dropdown' }),
+    ).toBeTruthy();
+
+    await act(async () => {
+      root.findByProps({ testID: 'work-items-menu-backdrop' }).props.onPress();
+    });
+
+    expect(() =>
+      root.findByProps({ testID: 'work-items-menu-dropdown' }),
+    ).toThrow();
   });
 
   it('logs out and navigates to login on logout press', async () => {
