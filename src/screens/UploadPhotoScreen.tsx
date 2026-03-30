@@ -12,10 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
@@ -32,7 +29,6 @@ type UploadPhotoNavigationProp = NativeStackNavigationProp<
 
 export function UploadPhotoScreen() {
   const navigation = useNavigation<UploadPhotoNavigationProp>();
-  const insets = useSafeAreaInsets();
   const route = useRoute<UploadPhotoRouteProp>();
   const {
     workItemId,
@@ -72,21 +68,26 @@ export function UploadPhotoScreen() {
     }
 
     if (typeof Geolocation.requestAuthorization === 'function') {
-      Geolocation.requestAuthorization(() => undefined);
+      Geolocation.requestAuthorization(
+        () => {
+          Geolocation.getCurrentPosition(
+            position => {
+              setDeviceLocation({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+              });
+            },
+            _error => {
+              setLocationError('Unable to get device location.');
+            },
+            { enableHighAccuracy: true },
+          );
+        },
+        () => {
+          setLocationError('Location permission denied.');
+        },
+      );
     }
-
-    Geolocation.getCurrentPosition(
-      position => {
-        setDeviceLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      _error => {
-        setLocationError('Unable to get device location.');
-      },
-      { enableHighAccuracy: true },
-    );
   }, [latitude, longitude]);
 
   const resolvedLatitude =
