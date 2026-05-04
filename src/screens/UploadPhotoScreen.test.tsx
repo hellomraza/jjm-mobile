@@ -8,6 +8,7 @@ const mockGoBack = jest.fn();
 const mockMutate = jest.fn();
 const mockUseUploadPhotoMutation = jest.fn();
 const mockUseComponents = jest.fn();
+const mockUseComponentPhotos = jest.fn();
 const mockGetCurrentPosition = jest.fn();
 const mockRequestAuthorization = jest.fn();
 const mockCompressImageForUpload = jest.fn();
@@ -47,6 +48,7 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../hooks/usePhotos', () => ({
   useUploadPhotoMutation: (...args: unknown[]) =>
     mockUseUploadPhotoMutation(...args),
+  useComponentPhotos: (...args: unknown[]) => mockUseComponentPhotos(...args),
 }));
 
 jest.mock('../hooks/useComponents', () => ({
@@ -87,6 +89,11 @@ describe('UploadPhotoScreen', () => {
       isPending: false,
       isError: false,
       isSuccess: false,
+    });
+    mockUseComponentPhotos.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
     });
     mockCompressImageForUpload.mockResolvedValue({
       uri: 'file:///tmp/photo-compressed.jpg',
@@ -177,6 +184,132 @@ describe('UploadPhotoScreen', () => {
     ).toContain('26.9124');
 
     expect(root.findByProps({ testID: 'upload-photo-time-text' })).toBeTruthy();
+  });
+
+  it('shows the approved photo when the component is approved', async () => {
+    mockRouteParams = {
+      ...mockRouteParams,
+      capturedPhotoPath: 'file:///tmp/local-photo.jpg',
+    };
+    mockUseComponents.mockReturnValue({
+      data: [
+        {
+          id: 'component-1',
+          work_item_id: 'work-item-1',
+          component_id: 'master-component-1',
+          quantity: 300,
+          progress: 300,
+          status: 'APPROVED',
+          approved_photo_id: 'photo-approved-1',
+          created_at: '2026-03-16T00:00:00Z',
+          updated_at: '2026-03-16T00:00:00Z',
+          component: {
+            id: 'master-component-1',
+            name: 'Pumping Mains',
+            unit: 'meters',
+            order_number: 1,
+            created_at: '2026-03-16T00:00:00Z',
+            updated_at: '2026-03-16T00:00:00Z',
+          },
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
+    });
+    mockUseComponentPhotos.mockReturnValue({
+      data: [
+        {
+          id: 'photo-approved-1',
+          image_url: 'https://example.com/approved-photo.jpg',
+          latitude: 26.9124,
+          longitude: 75.7873,
+          timestamp: '2026-03-17T10:00:00.000Z',
+          employee_id: 'employee-1',
+          component_id: 'component-1',
+          work_item_id: 'work-item-1',
+          is_selected: true,
+          is_forwarded_to_do: true,
+          created_at: '2026-03-17T10:00:00.000Z',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+
+    const root = await renderScreen();
+
+    expect(
+      root.findByProps({ testID: 'upload-approved-photo-text' }).props.children,
+    ).toBe('Approved photo');
+    expect(
+      root.findByProps({ testID: 'upload-photo-preview' }).props.source,
+    ).toEqual({ uri: 'https://example.com/approved-photo.jpg' });
+
+    expect(
+      root.findByProps({ testID: 'upload-photo-preview-container' }).props
+        .style,
+    ).toEqual(
+      expect.arrayContaining([expect.objectContaining({ aspectRatio: 3 / 4 })]),
+    );
+
+    expect(() =>
+      root.findByProps({ testID: 'upload-sequence-warning' }),
+    ).toThrow();
+  });
+
+  it('hides the progress input when the component is locked', async () => {
+    mockRouteParams = {
+      ...mockRouteParams,
+      componentId: 'component-2',
+    };
+    mockUseComponents.mockReturnValue({
+      data: [
+        {
+          id: 'component-1',
+          work_item_id: 'work-item-1',
+          component_id: 'master-component-1',
+          quantity: 300,
+          progress: 120,
+          status: 'IN_PROGRESS',
+          created_at: '2026-03-16T00:00:00Z',
+          updated_at: '2026-03-16T00:00:00Z',
+          component: {
+            id: 'master-component-1',
+            name: 'Pumping Mains',
+            unit: 'meters',
+            order_number: 1,
+            created_at: '2026-03-16T00:00:00Z',
+            updated_at: '2026-03-16T00:00:00Z',
+          },
+        },
+        {
+          id: 'component-2',
+          work_item_id: 'work-item-1',
+          component_id: 'master-component-2',
+          quantity: 100,
+          progress: 0,
+          status: 'PENDING',
+          created_at: '2026-03-16T00:00:00Z',
+          updated_at: '2026-03-16T00:00:00Z',
+          component: {
+            id: 'master-component-2',
+            name: 'Valve',
+            unit: 'nos',
+            order_number: 2,
+            created_at: '2026-03-16T00:00:00Z',
+            updated_at: '2026-03-16T00:00:00Z',
+          },
+        },
+      ],
+    });
+
+    const root = await renderScreen();
+
+    expect(() =>
+      root.findByProps({ testID: 'upload-progress-input' }),
+    ).toThrow();
   });
 
   it('shows dotted photo placeholder when capturedPhotoPath is not provided', async () => {

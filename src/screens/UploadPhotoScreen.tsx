@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
-import { useUploadPhotoMutation } from '../hooks/usePhotos';
+import { useComponentPhotos, useUploadPhotoMutation } from '../hooks/usePhotos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { uploadToCloudinary } from '../services/cloudinaryUpload';
 import { colors } from '../theme/colors';
@@ -56,6 +56,8 @@ export function UploadPhotoScreen() {
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { data: components } = useComponents(workItemId);
+  const { data: componentPhotos, isLoading: isComponentPhotosLoading } =
+    useComponentPhotos(componentId);
   const mutation = useUploadPhotoMutation(workItemId, componentId);
 
   const orderedComponents = [...(components ?? [])].sort((a, b) => {
@@ -67,8 +69,18 @@ export function UploadPhotoScreen() {
   const firstIncompleteComponent = orderedComponents.find(
     component => component.status !== 'APPROVED',
   );
+  const currentComponent = orderedComponents.find(
+    component => component.id === componentId,
+  );
   const isCurrentComponentAllowed =
     !firstIncompleteComponent || firstIncompleteComponent.id === componentId;
+  const isCurrentComponentApproved = currentComponent?.status === 'APPROVED';
+  const approvedPhoto = isCurrentComponentApproved
+    ? componentPhotos?.find(
+        photo => String(currentComponent.approved_photo_id) === photo.id,
+      ) ?? componentPhotos?.find(photo => photo.is_selected)
+    : undefined;
+  const previewPhotoUrl = approvedPhoto?.image_url ?? capturedPhotoPath;
 
   useEffect(() => {
     if (typeof latitude === 'number' && typeof longitude === 'number') {
@@ -278,18 +290,40 @@ export function UploadPhotoScreen() {
         </View>
 
         <View style={styles.card}>
-          {capturedPhotoPath ? (
+          {isCurrentComponentApproved && isComponentPhotosLoading ? (
+            <Text
+              style={styles.metaText}
+              testID="upload-approved-photo-loading"
+            >
+              Loading approved photo...
+            </Text>
+          ) : previewPhotoUrl ? (
             <>
-              <View style={styles.previewContainer}>
+              <View
+                style={[
+                  styles.previewContainer,
+                  isCurrentComponentApproved && styles.previewContainerApproved,
+                ]}
+                testID="upload-photo-preview-container"
+              >
                 <Image
-                  source={{ uri: capturedPhotoPath }}
+                  source={{ uri: previewPhotoUrl }}
                   style={styles.previewImage}
                   resizeMode="cover"
                   testID="upload-photo-preview"
                 />
               </View>
-              <Text style={styles.metaText} testID="upload-captured-photo-path">
-                Photo ready: {capturedPhotoPath}
+              <Text
+                style={styles.metaText}
+                testID={
+                  isCurrentComponentApproved
+                    ? 'upload-approved-photo-text'
+                    : 'upload-captured-photo-path'
+                }
+              >
+                {isCurrentComponentApproved
+                  ? 'Approved photo'
+                  : `Photo ready: ${capturedPhotoPath}`}
               </Text>
             </>
           ) : (
@@ -338,7 +372,7 @@ export function UploadPhotoScreen() {
             </View>
           ) : null}
 
-          {!isCurrentComponentAllowed ? (
+          {!isCurrentComponentAllowed && !isCurrentComponentApproved ? (
             <Text
               style={styles.sequenceWarning}
               testID="upload-sequence-warning"
@@ -347,15 +381,19 @@ export function UploadPhotoScreen() {
             </Text>
           ) : null}
 
-          <Text style={styles.label}>Progress Value</Text>
-          <TextInput
-            style={styles.input}
-            value={progress}
-            onChangeText={setProgress}
-            placeholder="Enter completed progress"
-            keyboardType="numeric"
-            testID="upload-progress-input"
-          />
+          {!isLocked ? (
+            <>
+              <Text style={styles.label}>Progress Value</Text>
+              <TextInput
+                style={styles.input}
+                value={progress}
+                onChangeText={setProgress}
+                placeholder="Enter completed progress"
+                keyboardType="numeric"
+                testID="upload-progress-input"
+              />
+            </>
+          ) : null}
 
           {uploadError || mutation.isError ? (
             <Text style={styles.errorText} testID="upload-error-text">
@@ -363,40 +401,45 @@ export function UploadPhotoScreen() {
             </Text>
           ) : null}
 
-          <Pressable
-            style={[
-              styles.submitButton,
-              (isBusy || !isCurrentComponentAllowed) &&
-                styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={isBusy || !isCurrentComponentAllowed}
-            testID="upload-submit-button"
-          >
-            {uploadStage === 'uploading' ? (
-              <View
-                style={[
-                  styles.submitButtonProgressFill,
-                  { width: `${uploadProgressPercent}%` },
-                ]}
-                testID="upload-submit-progress-fill"
-              />
-            ) : null}
+          {!isLocked ? (
+            <Pressable
+              style={[
+                styles.submitButton,
+                (isBusy || !isCurrentComponentAllowed) &&
+                  styles.submitButtonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={isBusy || !isCurrentComponentAllowed}
+              testID="upload-submit-button"
+            >
+              {uploadStage === 'uploading' ? (
+                <View
+                  style={[
+                    styles.submitButtonProgressFill,
+                    { width: `${uploadProgressPercent}%` },
+                  ]}
+                  testID="upload-submit-progress-fill"
+                />
+              ) : null}
 
-            {uploadStage === 'compressing' || uploadStage === 'submitting' ? (
-              <ActivityIndicator
-                size="small"
-                color={colors.white}
-                testID="upload-submit-activity-indicator"
-              />
-            ) : null}
+              {uploadStage === 'compressing' || uploadStage === 'submitting' ? (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.white}
+                  testID="upload-submit-activity-indicator"
+                />
+              ) : null}
 
-            <Text style={styles.submitButtonText} testID="upload-loading-text">
-              {uploadStage === 'uploading'
-                ? `Uploading... ${uploadProgressPercent}%`
-                : getLoadingLabel()}
-            </Text>
-          </Pressable>
+              <Text
+                style={styles.submitButtonText}
+                testID="upload-loading-text"
+              >
+                {uploadStage === 'uploading'
+                  ? `Uploading... ${uploadProgressPercent}%`
+                  : getLoadingLabel()}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -494,6 +537,9 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
     marginBottom: spacing.sm,
     backgroundColor: colors.secondaryBackground,
+  },
+  previewContainerApproved: {
+    aspectRatio: 3 / 4,
   },
   previewImage: {
     width: '100%',
