@@ -6,13 +6,16 @@ import {
 } from '@tanstack/react-query';
 import api from '../api/client';
 import type {
+  GetComponentPhotoStatusesResponse,
   GetComponentPhotosResponse,
   PhotoResponseDto,
+  PhotoStatusResponseDto,
   UploadComponentPhotoResponse,
 } from '../api/responseTypes';
 import { componentsQueryKey } from './useComponents';
 
 export type ComponentPhoto = PhotoResponseDto;
+export type ComponentPhotoStatus = PhotoStatusResponseDto;
 export interface UploadPhotoPayload {
   photoUrl: string;
   work_item_id: string;
@@ -26,11 +29,24 @@ export interface UploadPhotoPayload {
 export const componentPhotosQueryKey = (componentId: string) =>
   ['componentPhotos', componentId] as const;
 
+export const componentPhotoStatusesQueryKey = (componentId: string) =>
+  ['componentPhotoStatuses', componentId] as const;
+
 export async function fetchComponentPhotos(
   componentId: string,
 ): Promise<ComponentPhoto[]> {
   const response = await api.get<GetComponentPhotosResponse>(
     `/components/${componentId}/photos`,
+  );
+
+  return response.data.data;
+}
+
+export async function fetchComponentPhotoStatuses(
+  componentId: string,
+): Promise<ComponentPhotoStatus[]> {
+  const response = await api.get<GetComponentPhotoStatusesResponse>(
+    `/photo-status/component/${componentId}`,
   );
 
   return response.data.data;
@@ -61,6 +77,14 @@ export function useComponentPhotos(componentId: string) {
   });
 }
 
+export function useComponentPhotoStatuses(componentId: string) {
+  return useQuery({
+    queryKey: componentPhotoStatusesQueryKey(componentId),
+    queryFn: () => fetchComponentPhotoStatuses(componentId),
+    enabled: !!componentId,
+  });
+}
+
 export function invalidatePhotoUploadQueries(
   queryClient: QueryClient,
   workItemId: string,
@@ -69,6 +93,9 @@ export function invalidatePhotoUploadQueries(
   queryClient.invalidateQueries({ queryKey: componentsQueryKey(workItemId) });
   queryClient.invalidateQueries({
     queryKey: componentPhotosQueryKey(componentId),
+  });
+  queryClient.invalidateQueries({
+    queryKey: componentPhotoStatusesQueryKey(componentId),
   });
 }
 

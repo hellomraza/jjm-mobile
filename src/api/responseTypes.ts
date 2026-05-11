@@ -111,6 +111,31 @@ export interface PhotoResponseDto {
   created_at: string;
 }
 
+export type PhotoStatusValue = 'UPLOADED' | 'SELECTED' | 'APPROVED';
+
+export interface PhotoStatusUserDto {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface PhotoStatusResponseDto {
+  id: string;
+  photo_id: string;
+  photo?: PhotoResponseDto;
+  work_item_id: string;
+  component_id: string;
+  status: PhotoStatusValue;
+  selected_by?: string | null;
+  selectedByUser?: PhotoStatusUserDto | null;
+  selected_at?: string | null;
+  approved_by?: string | null;
+  approvedByUser?: PhotoStatusUserDto | null;
+  approved_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ActionResponseDto {
   success: boolean;
   message: string;
@@ -124,7 +149,6 @@ export interface WorkItemComponentResponseDto {
   progress: string;
   remarks?: unknown | null;
   status: WorkItemComponentStatus;
-  approved_photo_id?: unknown | null;
   created_at: string;
   updated_at: string;
   component?: ComponentResponseDto;
@@ -207,6 +231,8 @@ export type ReviewComponentPhotosResponse = PaginatedResponse<PhotoResponseDto>;
 export type SelectPhotoResponse = PhotoResponseDto;
 export type ForwardPhotoResponse = PhotoResponseDto;
 export type GetPhotoByIdResponse = PhotoResponseDto;
+export type GetComponentPhotoStatusesResponse =
+  PaginatedResponse<PhotoStatusResponseDto>;
 
 export type CreateLocationResponse = LocationResponseDto;
 export type ListLocationsResponse = PaginatedResponse<LocationResponseDto>;
