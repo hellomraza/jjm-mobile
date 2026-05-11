@@ -9,6 +9,7 @@ const mockMutate = jest.fn();
 const mockUseUploadPhotoMutation = jest.fn();
 const mockUseComponents = jest.fn();
 const mockUseComponentPhotos = jest.fn();
+const mockUseComponentPhotoStatuses = jest.fn();
 const mockGetCurrentPosition = jest.fn();
 const mockRequestAuthorization = jest.fn();
 const mockCompressImageForUpload = jest.fn();
@@ -48,7 +49,10 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../hooks/usePhotos', () => ({
   useUploadPhotoMutation: (...args: unknown[]) =>
     mockUseUploadPhotoMutation(...args),
-  useComponentPhotos: (...args: unknown[]) => mockUseComponentPhotos(...args),
+  useComponentPhotos: (...args: unknown[]) =>
+    mockUseComponentPhotos(...args),
+  useComponentPhotoStatuses: (...args: unknown[]) =>
+    mockUseComponentPhotoStatuses(...args),
 }));
 
 jest.mock('../hooks/useComponents', () => ({
@@ -89,6 +93,11 @@ describe('UploadPhotoScreen', () => {
       isPending: false,
       isError: false,
       isSuccess: false,
+    });
+    mockUseComponentPhotoStatuses.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
     });
     mockUseComponentPhotos.mockReturnValue({
       data: [],
@@ -200,7 +209,6 @@ describe('UploadPhotoScreen', () => {
           quantity: 300,
           progress: 300,
           status: 'APPROVED',
-          approved_photo_id: 'photo-approved-1',
           created_at: '2026-03-16T00:00:00Z',
           updated_at: '2026-03-16T00:00:00Z',
           component: {
@@ -215,23 +223,96 @@ describe('UploadPhotoScreen', () => {
       ],
       isLoading: false,
       isError: false,
-      refetch: mockRefetchComponents,
-      isRefetching: false,
+    });
+    mockUseComponentPhotoStatuses.mockReturnValue({
+      data: [
+        {
+          id: 'photo-approved-1',
+          photo_id: 'photo-approved-1',
+          photo: {
+            id: 'photo-approved-1',
+            image_url: 'https://example.com/approved-photo.jpg',
+            latitude: 26.9124,
+            longitude: 75.7873,
+            timestamp: '2026-03-17T10:00:00.000Z',
+            employee_id: 'employee-1',
+            component_id: 'component-1',
+            work_item_id: 'work-item-1',
+            is_selected: true,
+            is_forwarded_to_do: true,
+            created_at: '2026-03-17T10:00:00.000Z',
+          },
+          component_id: 'component-1',
+          work_item_id: 'work-item-1',
+          status: 'APPROVED',
+          approved_by: 'do-1',
+          approvedByUser: {
+            id: 'do-1',
+            name: 'District Officer',
+            email: 'do@example.com',
+          },
+          approved_at: '2026-03-17T11:00:00.000Z',
+          created_at: '2026-03-17T10:00:00.000Z',
+        },
+        {
+          id: 'photo-approved-2',
+          photo_id: 'photo-approved-2',
+          photo: {
+            id: 'photo-approved-2',
+            image_url: 'https://example.com/approved-photo-2.jpg',
+            latitude: 26.9124,
+            longitude: 75.7873,
+            timestamp: '2026-03-17T10:30:00.000Z',
+            employee_id: 'employee-1',
+            component_id: 'component-1',
+            work_item_id: 'work-item-1',
+            is_selected: true,
+            is_forwarded_to_do: true,
+            created_at: '2026-03-17T10:30:00.000Z',
+          },
+          component_id: 'component-1',
+          work_item_id: 'work-item-1',
+          status: 'APPROVED',
+          approved_by: 'do-1',
+          approvedByUser: {
+            id: 'do-1',
+            name: 'District Officer',
+            email: 'do@example.com',
+          },
+          approved_at: '2026-03-17T11:30:00.000Z',
+          created_at: '2026-03-17T10:30:00.000Z',
+        },
+      ],
+      isLoading: false,
+      isError: false,
     });
     mockUseComponentPhotos.mockReturnValue({
       data: [
         {
-          id: 'photo-approved-1',
-          image_url: 'https://example.com/approved-photo.jpg',
+          id: 'photo-1',
+          image_url: 'https://example.com/photo-1.jpg',
           latitude: 26.9124,
           longitude: 75.7873,
           timestamp: '2026-03-17T10:00:00.000Z',
           employee_id: 'employee-1',
           component_id: 'component-1',
           work_item_id: 'work-item-1',
+          is_selected: false,
+          is_forwarded_to_do: false,
+          created_at: '2026-03-17T10:00:00.000Z',
+        },
+        {
+          id: 'photo-2',
+          image_url: 'https://example.com/photo-2.jpg',
+          latitude: 26.9124,
+          longitude: 75.7873,
+          timestamp: '2026-03-17T11:00:00.000Z',
+          employee_id: 'employee-1',
+          component_id: 'component-1',
+          work_item_id: 'work-item-1',
           is_selected: true,
           is_forwarded_to_do: true,
-          created_at: '2026-03-17T10:00:00.000Z',
+          created_at: '2026-03-17T11:00:00.000Z',
         },
       ],
       isLoading: false,
@@ -242,10 +323,10 @@ describe('UploadPhotoScreen', () => {
 
     expect(
       root.findByProps({ testID: 'upload-approved-photo-text' }).props.children,
-    ).toBe('Approved photo');
+    ).toBe('Approved photo(s) available');
     expect(
       root.findByProps({ testID: 'upload-photo-preview' }).props.source,
-    ).toEqual({ uri: 'https://example.com/approved-photo.jpg' });
+    ).toEqual({ uri: 'https://example.com/approved-photo-2.jpg' });
 
     expect(
       root.findByProps({ testID: 'upload-photo-preview-container' }).props
@@ -257,6 +338,97 @@ describe('UploadPhotoScreen', () => {
     expect(() =>
       root.findByProps({ testID: 'upload-sequence-warning' }),
     ).toThrow();
+
+    expect(
+      root.findByProps({ testID: 'upload-approved-photos-section' }),
+    ).toBeTruthy();
+    expect(
+      root.findByProps({ testID: 'upload-photo-gallery-section' }),
+    ).toBeTruthy();
+    expect(
+      root.findByProps({ testID: 'upload-photo-gallery-0' }).props.source,
+    ).toEqual({ uri: 'https://example.com/photo-2.jpg' });
+    expect(
+      root.findByProps({ testID: 'upload-photo-gallery-1' }).props.source,
+    ).toEqual({ uri: 'https://example.com/photo-1.jpg' });
+    expect(() =>
+      root.findByProps({ testID: 'upload-captured-photo-path' }),
+    ).toThrow();
+  });
+
+  it('shows a photo status summary when the component has multiple reviewed photos', async () => {
+    mockUseComponentPhotoStatuses.mockReturnValue({
+      data: [
+        {
+          id: 'photo-status-1',
+          photo_id: 'photo-1',
+          photo: {
+            id: 'photo-1',
+            image_url: 'https://example.com/photo-1.jpg',
+            latitude: 26.9124,
+            longitude: 75.7873,
+            timestamp: '2026-03-17T10:00:00.000Z',
+            employee_id: 'employee-1',
+            component_id: 'component-1',
+            work_item_id: 'work-item-1',
+            is_selected: false,
+            is_forwarded_to_do: false,
+            created_at: '2026-03-17T10:00:00.000Z',
+          },
+          component_id: 'component-1',
+          work_item_id: 'work-item-1',
+          status: 'SELECTED',
+          selected_by: 'co-1',
+          selectedByUser: {
+            id: 'co-1',
+            name: 'Contractor Name',
+            email: 'contractor@example.com',
+          },
+          selected_at: '2026-03-17T10:30:00.000Z',
+          created_at: '2026-03-17T10:00:00.000Z',
+        },
+        {
+          id: 'photo-status-2',
+          photo_id: 'photo-2',
+          photo: {
+            id: 'photo-2',
+            image_url: 'https://example.com/photo-2.jpg',
+            latitude: 26.9124,
+            longitude: 75.7873,
+            timestamp: '2026-03-17T11:00:00.000Z',
+            employee_id: 'employee-1',
+            component_id: 'component-1',
+            work_item_id: 'work-item-1',
+            is_selected: true,
+            is_forwarded_to_do: true,
+            created_at: '2026-03-17T11:00:00.000Z',
+          },
+          component_id: 'component-1',
+          work_item_id: 'work-item-1',
+          status: 'APPROVED',
+          approved_by: 'do-1',
+          approvedByUser: {
+            id: 'do-1',
+            name: 'District Officer',
+            email: 'do@example.com',
+          },
+          approved_at: '2026-03-17T11:30:00.000Z',
+          created_at: '2026-03-17T11:00:00.000Z',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+
+    const root = await renderScreen();
+
+    expect(
+      root.findByProps({ testID: 'upload-photo-status-summary' }).props
+        .children,
+    ).toContain('2 photos');
+    expect(
+      root.findByProps({ testID: 'upload-photo-preview' }).props.source,
+    ).toEqual({ uri: 'https://example.com/photo-2.jpg' });
   });
 
   it('hides the progress input when the component is locked', async () => {
@@ -479,11 +651,9 @@ describe('UploadPhotoScreen', () => {
       root.findByProps({ testID: 'upload-sequence-warning' }),
     ).toBeTruthy();
 
-    await act(async () => {
-      root.findByProps({ testID: 'upload-submit-button' }).props.onPress();
-    });
-
-    expect(alertSpy).toHaveBeenCalled();
+    expect(() =>
+      root.findByProps({ testID: 'upload-submit-button' }),
+    ).toThrow();
     expect(mockMutate).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();

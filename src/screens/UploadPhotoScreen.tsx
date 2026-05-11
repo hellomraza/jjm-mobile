@@ -11,13 +11,17 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
-import { useComponentPhotos, useUploadPhotoMutation } from '../hooks/usePhotos';
+import {
+  useComponentPhotoStatuses,
+  useUploadPhotoMutation,
+} from '../hooks/usePhotos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { uploadToCloudinary } from '../services/cloudinaryUpload';
 import { colors } from '../theme/colors';
@@ -30,6 +34,92 @@ type UploadPhotoNavigationProp = NativeStackNavigationProp<
   'UploadPhoto'
 >;
 
+function getPhotoStatusesSummaryText(
+  photoCount: number,
+  selectedCount: number,
+  approvedCount: number,
+) {
+  const parts = [`${photoCount} photo${photoCount === 1 ? '' : 's'}`];
+
+  if (selectedCount > 0) {
+    parts.push(`${selectedCount} selected`);
+  }
+
+  if (approvedCount > 0) {
+    parts.push(`${approvedCount} approved`);
+  }
+
+  return parts.join(' · ');
+}
+
+function sortPhotoStatuses(
+  photoStatuses:
+    | Array<{
+        id: string;
+        status: 'UPLOADED' | 'SELECTED' | 'APPROVED';
+        photo?: { image_url: string };
+        created_at?: string;
+        selected_at?: string | null;
+        approved_at?: string | null;
+      }>
+    | undefined,
+) {
+  return [...(photoStatuses ?? [])].sort((left, right) => {
+    const statusRank = { APPROVED: 2, SELECTED: 1, UPLOADED: 0 } as const;
+    const leftRank = statusRank[left.status];
+    const rightRank = statusRank[right.status];
+
+    if (leftRank !== rightRank) {
+      return rightRank - leftRank;
+    }
+
+    const leftTimestamp =
+      left.approved_at ?? left.selected_at ?? left.created_at ?? '';
+    const rightTimestamp =
+      right.approved_at ?? right.selected_at ?? right.created_at ?? '';
+
+    return rightTimestamp.localeCompare(leftTimestamp);
+  });
+}
+
+function getPreviewPhotoUrl(
+  photoStatuses:
+    | Array<{
+        id: string;
+        status: 'UPLOADED' | 'SELECTED' | 'APPROVED';
+        photo?: { image_url: string };
+        created_at?: string;
+        selected_at?: string | null;
+        approved_at?: string | null;
+      }>
+    | undefined,
+) {
+  if (!photoStatuses?.length) {
+    return undefined;
+  }
+
+  const orderedStatuses = sortPhotoStatuses(photoStatuses);
+
+  return orderedStatuses[0]?.photo?.image_url;
+}
+
+function getApprovedPhotoStatuses(
+  photoStatuses:
+    | Array<{
+        id: string;
+        status: 'UPLOADED' | 'SELECTED' | 'APPROVED';
+        photo?: { image_url: string };
+        created_at?: string;
+        selected_at?: string | null;
+        approved_at?: string | null;
+      }>
+    | undefined,
+) {
+  return sortPhotoStatuses(photoStatuses).filter(
+    photoStatus =>
+      photoStatus.status === 'APPROVED' && !!photoStatus.photo?.image_url,
+  );
+}
 export function UploadPhotoScreen() {
   const navigation = useNavigation<UploadPhotoNavigationProp>();
   const route = useRoute<UploadPhotoRouteProp>();
@@ -42,6 +132,8 @@ export function UploadPhotoScreen() {
     latitude,
     longitude,
   } = route.params;
+
+  const [approvedPhotoViewIndex, setApprovedPhotoViewIndex] = useState(0);
 
   const [progress, setProgress] = useState('');
   const [deviceLocation, setDeviceLocation] = useState<{
@@ -56,8 +148,8 @@ export function UploadPhotoScreen() {
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { data: components } = useComponents(workItemId);
-  const { data: componentPhotos, isLoading: isComponentPhotosLoading } =
-    useComponentPhotos(componentId);
+  const { data: photoStatuses, isLoading: isPhotoStatusesLoading } =
+    useComponentPhotoStatuses(componentId);
   const mutation = useUploadPhotoMutation(workItemId, componentId);
 
   const orderedComponents = [...(components ?? [])].sort((a, b) => {
@@ -75,12 +167,18 @@ export function UploadPhotoScreen() {
   const isCurrentComponentAllowed =
     !firstIncompleteComponent || firstIncompleteComponent.id === componentId;
   const isCurrentComponentApproved = currentComponent?.status === 'APPROVED';
-  const approvedPhoto = isCurrentComponentApproved
-    ? componentPhotos?.find(
-        photo => String(currentComponent.approved_photo_id) === photo.id,
-      ) ?? componentPhotos?.find(photo => photo.is_selected)
-    : undefined;
-  const previewPhotoUrl = approvedPhoto?.image_url ?? capturedPhotoPath;
+  const photoCount = photoStatuses?.length ?? 0;
+  const selectedPhotoCount =
+    photoStatuses?.filter(photoStatus => photoStatus.status === 'SELECTED')
+      .length ?? 0;
+  const approvedPhotoCount =
+    photoStatuses?.filter(photoStatus => photoStatus.status === 'APPROVED')
+      .length ?? 0;
+  const approvedPhotoStatuses = getApprovedPhotoStatuses(photoStatuses);
+
+  const previewPhotoUrl = isCurrentComponentApproved
+    ? approvedPhotoStatuses[approvedPhotoViewIndex]?.photo?.image_url
+    : getPreviewPhotoUrl(photoStatuses) ?? capturedPhotoPath;
 
   useEffect(() => {
     if (typeof latitude === 'number' && typeof longitude === 'number') {
@@ -153,6 +251,14 @@ export function UploadPhotoScreen() {
 
   const handleSubmit = async () => {
     const progressValue = parseFloat(progress);
+
+    if (Number(currentComponent?.quantity) < Number(progress)) {
+      Alert.alert(
+        'Invalid Progress',
+        `Progress value cannot exceed component quantity of ${currentComponent?.quantity}.`,
+      );
+      return;
+    }
 
     if (!isCurrentComponentAllowed) {
       Alert.alert(
@@ -290,7 +396,7 @@ export function UploadPhotoScreen() {
         </View>
 
         <View style={styles.card}>
-          {isCurrentComponentApproved && isComponentPhotosLoading ? (
+          {isCurrentComponentApproved && isPhotoStatusesLoading ? (
             <Text
               style={styles.metaText}
               testID="upload-approved-photo-loading"
@@ -318,14 +424,29 @@ export function UploadPhotoScreen() {
                 testID={
                   isCurrentComponentApproved
                     ? 'upload-approved-photo-text'
+                    : photoCount > 0
+                    ? 'upload-photo-status-summary'
                     : 'upload-captured-photo-path'
                 }
               >
                 {isCurrentComponentApproved
-                  ? 'Approved photo'
+                  ? 'Approved photo(s) available'
+                  : photoCount > 0
+                  ? getPhotoStatusesSummaryText(
+                      photoCount,
+                      selectedPhotoCount,
+                      approvedPhotoCount,
+                    )
                   : `Photo ready: ${capturedPhotoPath}`}
               </Text>
             </>
+          ) : isCurrentComponentApproved ? (
+            <Text
+              style={styles.metaText}
+              testID="upload-approved-photo-missing"
+            >
+              Approved photos are not available yet.
+            </Text>
           ) : (
             <Pressable
               style={styles.uploadPlaceholder}
@@ -338,6 +459,37 @@ export function UploadPhotoScreen() {
               </Text>
             </Pressable>
           )}
+
+          {isCurrentComponentApproved && approvedPhotoStatuses.length > 0 ? (
+            <View
+              style={styles.approvedPhotosSection}
+              testID="upload-approved-photos-section"
+            >
+              <Text style={styles.approvedPhotosTitle}>Approved photos</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.approvedPhotosList}
+                testID="upload-approved-photos-list"
+              >
+                {approvedPhotoStatuses.map((photoStatus, index) => (
+                  <TouchableOpacity
+                    key={photoStatus.id}
+                    onPress={() => setApprovedPhotoViewIndex(index)}
+                  >
+                    <View style={styles.approvedPhotoCard}>
+                      <Image
+                        source={{ uri: photoStatus.photo!.image_url }}
+                        style={styles.approvedPhotoImage}
+                        resizeMode="cover"
+                        testID={`upload-approved-photo-${index}`}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
 
           {typeof resolvedLatitude === 'number' &&
           typeof resolvedLongitude === 'number' ? (
@@ -542,6 +694,32 @@ const styles = StyleSheet.create({
     aspectRatio: 3 / 4,
   },
   previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  approvedPhotosSection: {
+    marginBottom: spacing.sm,
+  },
+  approvedPhotosTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  approvedPhotosList: {
+    paddingRight: spacing.xs,
+  },
+  approvedPhotoCard: {
+    width: 120,
+    height: 120,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    backgroundColor: colors.secondaryBackground,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    marginRight: spacing.xs,
+  },
+  approvedPhotoImage: {
     width: '100%',
     height: '100%',
   },
