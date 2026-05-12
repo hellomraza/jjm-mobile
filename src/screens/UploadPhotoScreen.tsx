@@ -178,7 +178,7 @@ export function UploadPhotoScreen() {
 
   const previewPhotoUrl = isCurrentComponentApproved
     ? approvedPhotoStatuses[approvedPhotoViewIndex]?.photo?.image_url
-    : getPreviewPhotoUrl(photoStatuses) ?? capturedPhotoPath;
+    : capturedPhotoPath;
 
   useEffect(() => {
     if (typeof latitude === 'number' && typeof longitude === 'number') {

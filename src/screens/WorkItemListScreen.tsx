@@ -211,7 +211,11 @@ export function WorkItemListScreen() {
       ) : null}
 
       {!isLoading && !isError && (workItems?.length ?? 0) === 0 ? (
-        <Text testID="work-items-empty-text">No work items found.</Text>
+        <View style={styles.emptyContainer} testID="work-items-empty-container">
+          <Text testID="work-items-empty-text" style={styles.emptyText}>
+            No work items found. Please contact your contractor to assign work.
+          </Text>
+        </View>
       ) : null}
 
       {!isLoading && !isError ? (
@@ -399,5 +403,18 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: radius.sm,
     backgroundColor: '#E7ECF1',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyText: {
+    fontSize: fontSize.md,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
   },
 });

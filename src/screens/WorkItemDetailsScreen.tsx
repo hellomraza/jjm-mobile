@@ -213,9 +213,14 @@ export function WorkItemDetailsScreen() {
   const panchayatDisplay =
     panchayat?.panchayatname ??
     (workItem?.panchayat_id ? String(workItem.panchayat_id) : 'N/A');
+
   const contractorDisplay =
     contractor?.name ?? workItem?.contractor_id ?? 'N/A';
-  const progressFillStyle = getProgressFillStyle(workItem?.progress_percentage);
+  const progressPercent =
+    componentCount > 0
+      ? Math.round((completedCount / componentCount) * 100)
+      : 0;
+  const progressFillStyle = getProgressFillStyle(progressPercent);
   const viewComponentsButtonStyle = getStickyButtonStyle(insets.bottom);
 
   if (isWorkItemLoading) {
@@ -294,9 +299,7 @@ export function WorkItemDetailsScreen() {
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, progressFillStyle]} />
             </View>
-            <Text style={styles.progressText}>
-              {workItem.progress_percentage || 0}% Complete
-            </Text>
+            <Text style={styles.progressText}>{progressPercent}% Complete</Text>
           </View>
         </View>
 
