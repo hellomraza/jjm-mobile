@@ -33,6 +33,7 @@ export function FormTextInput({
   ...textInputProps
 }: FormTextInputProps) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View style={styles.container}>
@@ -41,13 +42,22 @@ export function FormTextInput({
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          onBlur={onBlur}
+          onFocus={(e) => {
+            setIsFocused(true);
+            textInputProps.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            onBlur?.(e);
+          }}
           placeholder={placeholder}
           style={[
             styles.input,
+            isFocused ? styles.inputFocused : undefined,
             errorMessage ? styles.inputError : undefined,
             showPasswordToggle ? styles.inputWithToggle : undefined,
           ]}
+          placeholderTextColor="#9CA3AF"
           testID={testID}
           secureTextEntry={showPasswordToggle && !isPasswordVisible}
           {...textInputProps}
@@ -55,7 +65,9 @@ export function FormTextInput({
         {showPasswordToggle ? (
           <Pressable
             style={styles.passwordToggle}
-            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+            onPress={() => {
+              setIsPasswordVisible(!isPasswordVisible);
+            }}
             testID={`${testID}-toggle`}
             hitSlop={10}
           >
@@ -107,6 +119,10 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: colors.danger,
+  },
+  inputFocused: {
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
   },
   errorText: {
     marginTop: spacing.xs,
