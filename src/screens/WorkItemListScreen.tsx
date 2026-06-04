@@ -1,8 +1,19 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  FlatList,
+  Platform,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  Vibration,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import type { WorkItemStatus } from '../api/responseTypes';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../hooks/useUser';
@@ -10,11 +21,159 @@ import { useWorkItems } from '../hooks/useWorkItems';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
+import { perfectSize } from '../utils/perfectSize';
 
 type WorkItemListNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'WorkItemList'
 >;
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+type WorkItem = NonNullable<ReturnType<typeof useWorkItems>['data']>[number];
+
+type WorkItemCardProps = {
+  item: WorkItem;
+  onPress: () => void;
+  getStatusStyles: (status: WorkItemStatus) => {
+    label: string;
+    textColor: string;
+    bgColor: string;
+    icon: string;
+  };
+  getContractorName: (item: WorkItem) => string;
+  triggerHaptic: (type: 'light' | 'medium') => void;
+};
+
+function WorkItemCard({
+  item,
+  onPress,
+  getStatusStyles,
+  getContractorName,
+  triggerHaptic,
+}: WorkItemCardProps) {
+  const animatedScale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(animatedScale, {
+      toValue: 0.95,
+      useNativeDriver: true,
+      tension: 120,
+      friction: 8,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(animatedScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 120,
+      friction: 8,
+    }).start();
+  };
+
+  const safeProgress = Math.max(
+    0,
+    Math.min(100, item.progress_percentage ?? 0),
+  );
+  const statusStyles = getStatusStyles(item.status);
+
+  return (
+    <AnimatedPressable
+      style={[styles.card, { transform: [{ scale: animatedScale }] }]}
+      testID={`work-item-card-${item.id}`}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={() => {
+        triggerHaptic('light');
+        onPress();
+      }}
+    >
+      {/* Top Section: Status Icon (Top-Left) & Status Badge (Top-Right) */}
+      <View style={styles.headerRow}>
+          <Icon name={statusStyles.icon} size={perfectSize(16)} color={statusStyles.textColor} />
+        <View style={[styles.statusBadge, { backgroundColor: statusStyles.bgColor }]}>
+          <Text style={[styles.statusBadgeText, { color: statusStyles.textColor }]}>
+            {statusStyles.label}
+          </Text>
+        </View>
+      </View>
+
+      {/* Primary Info: Work Code (bold & prominent) */}
+      <Text numberOfLines={1} style={styles.workCode}>
+        {item.work_code || 'N/A'}
+      </Text>
+
+      {/* Contractor row with building icon */}
+      <View style={styles.contractorRow}>
+        <Icon
+          name="office-building-marker-outline"
+          size={perfectSize(14)}
+          color="#6B7280"
+          style={styles.contractorIcon}
+        />
+        <Text numberOfLines={1} style={styles.contractorText}>
+          {getContractorName(item)}
+        </Text>
+      </View>
+
+      {/* Bottom Section: Progress percent and bar matching status color */}
+      <View style={styles.progressSection}>
+        <View style={styles.progressRow}>
+          <Text style={styles.progressLabel}>Progress</Text>
+          <Text style={styles.progressPercent}>{safeProgress}%</Text>
+        </View>
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${safeProgress}%`,
+                backgroundColor: statusStyles.textColor,
+              },
+            ]}
+          />
+        </View>
+      </View>
+    </AnimatedPressable>
+  );
+}
+
+function SkeletonCard({ item }: { item: number }) {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View
+      style={[styles.skeletonCard, { opacity }]}
+      testID={`work-item-skeleton-${item}`}
+    >
+      <View style={styles.skeletonTitle} />
+      <View style={styles.skeletonBadge} />
+      <View style={styles.skeletonProgressLine} />
+      <View style={styles.skeletonProgressLineShort} />
+      <View style={styles.skeletonMeta} />
+    </Animated.View>
+  );
+}
 
 export function WorkItemListScreen() {
   const navigation = useNavigation<WorkItemListNavigationProp>();
@@ -36,13 +195,33 @@ export function WorkItemListScreen() {
 
   const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
 
+  const triggerHaptic = (type: 'light' | 'medium') => {
+    try {
+      if (Platform.OS === 'android') {
+        if (type === 'light') {
+          Vibration.vibrate(10);
+        } else if (type === 'medium') {
+          Vibration.vibrate(20);
+        }
+      } else {
+        if (type === 'medium') {
+          Vibration.vibrate();
+        }
+      }
+    } catch (e) {
+      // Catch silently
+    }
+  };
+
   const handleRefresh = () => {
+    triggerHaptic('light');
     Promise.allSettled([refetchWorkItems(), refetchUserProfile()]).then(
       () => undefined,
     );
   };
 
   const handleLogout = async () => {
+    triggerHaptic('medium');
     setIsMenuOpen(false);
     await logout();
     navigation.replace('Login');
@@ -52,29 +231,30 @@ export function WorkItemListScreen() {
     if (status === 'COMPLETED') {
       return {
         label: 'Completed',
-        textColor: '#1E8E3E',
-        bgColor: '#EAF8EE',
+        textColor: '#10B981',
+        bgColor: '#D1FAE5',
+        icon: 'check-circle-outline',
       };
     }
 
     if (status === 'IN_PROGRESS') {
       return {
         label: 'In Progress',
-        textColor: '#B27A00',
-        bgColor: '#FFF7E6',
+        textColor: '#3B82F6',
+        bgColor: '#DBEAFE',
+        icon: 'play-circle-outline',
       };
     }
 
     return {
       label: 'Pending',
-      textColor: colors.textPrimary,
-      bgColor: '#EEF1F4',
+      textColor: '#F59E0B',
+      bgColor: '#FEF3C7',
+      icon: 'clock-outline',
     };
   };
 
-  const getContractorName = (
-    item: NonNullable<typeof workItems>[number],
-  ): string => {
+  const getContractorName = (item: WorkItem): string => {
     const enrichedContractorName = item.contractor?.name;
 
     if (enrichedContractorName) {
@@ -84,95 +264,60 @@ export function WorkItemListScreen() {
     return item.contractor_id || 'N/A';
   };
 
-  const renderItem = ({
-    item,
-  }: {
-    item: NonNullable<typeof workItems>[number];
-  }) => {
-    const safeProgress = Math.max(
-      0,
-      Math.min(100, item.progress_percentage ?? 0),
-    );
-    const statusStyles = getStatusStyles(item.status);
-
-    return (
-      <Pressable
-        style={styles.card}
-        testID={`work-item-card-${item.id}`}
-        onPress={() =>
-          navigation.navigate('WorkItemDetails', {
-            workItemId: item.id,
-            title: item.title,
-          })
-        }
-      >
-        <Text numberOfLines={2} style={styles.itemTitle}>
-          {item.title}
-        </Text>
-
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: statusStyles.bgColor },
-          ]}
-        >
-          <Text
-            style={[styles.statusBadgeText, { color: statusStyles.textColor }]}
-          >
-            {statusStyles.label}
-          </Text>
-        </View>
-
-        <Text style={styles.itemLabel}>Overall Progress</Text>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${safeProgress}%` }]} />
-        </View>
-        <Text style={styles.progressText}>{safeProgress}%</Text>
-
-        <Text style={styles.itemMeta}>
-          Contractor: {getContractorName(item)}
-        </Text>
-      </Pressable>
-    );
-  };
+  const renderItem = ({ item }: { item: WorkItem }) => (
+    <WorkItemCard
+      item={item}
+      onPress={() =>
+        navigation.navigate('WorkItemDetails', {
+          workItemId: item.id,
+          title: item.title,
+        })
+      }
+      getStatusStyles={getStatusStyles}
+      getContractorName={getContractorName}
+      triggerHaptic={triggerHaptic}
+    />
+  );
 
   const renderSkeleton = ({ item }: { item: number }) => (
-    <View style={styles.skeletonCard} testID={`work-item-skeleton-${item}`}>
-      <View style={styles.skeletonTitle} />
-      <View style={styles.skeletonBadge} />
-      <View style={styles.skeletonProgressLine} />
-      <View style={styles.skeletonProgressLineShort} />
-      <View style={styles.skeletonMeta} />
-    </View>
+    <SkeletonCard item={item} />
   );
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
       {isMenuOpen ? (
         <Pressable
           style={styles.menuBackdrop}
-          onPress={() => setIsMenuOpen(false)}
+          onPress={() => {
+            triggerHaptic('light');
+            setIsMenuOpen(false);
+          }}
           testID="work-items-menu-backdrop"
         />
       ) : null}
 
       <View style={styles.headerContainer}>
         <View style={styles.headerRow}>
-          <Text style={styles.employeeName} testID="work-items-employee-name">
-            {employeeName}
-          </Text>
+          <View style={styles.userSection}>
+            <Text style={styles.welcomeText}>Welcome back,</Text>
+            <Text style={styles.employeeName} testID="work-items-employee-name">
+              {employeeName}
+            </Text>
+          </View>
 
           <View style={styles.menuWrapper}>
             <Pressable
               style={styles.menuButton}
-              onPress={() => setIsMenuOpen(prev => !prev)}
+              onPress={() => {
+                triggerHaptic('medium');
+                setIsMenuOpen(prev => !prev);
+              }}
               testID="work-items-menu-button"
               accessibilityRole="button"
               accessibilityLabel="Open menu"
             >
-              <Text style={styles.menuButtonText}>•</Text>
-              <Text style={styles.menuButtonText}>•</Text>
-              <Text style={styles.menuButtonText}>•</Text>
+              <Icon name="account-circle" size={perfectSize(36)} color={colors.primary} />
             </Pressable>
 
             {isMenuOpen ? (
@@ -185,6 +330,12 @@ export function WorkItemListScreen() {
                   onPress={handleLogout}
                   testID="work-items-logout-button"
                 >
+                  <Icon
+                    name="logout"
+                    size={perfectSize(18)}
+                    color={colors.danger}
+                    style={styles.menuIcon}
+                  />
                   <Text style={styles.menuItemText}>Logout</Text>
                 </Pressable>
               </View>
@@ -207,11 +358,14 @@ export function WorkItemListScreen() {
         />
       ) : null}
       {isError ? (
-        <Text testID="work-items-error-text">Failed to load work items.</Text>
+        <Text testID="work-items-error-text" style={styles.errorText}>
+          Failed to load work items.
+        </Text>
       ) : null}
 
       {!isLoading && !isError && (workItems?.length ?? 0) === 0 ? (
         <View style={styles.emptyContainer} testID="work-items-empty-container">
+          <Icon name="clipboard-text-outline" size={perfectSize(64)} color="#9CA3AF" />
           <Text testID="work-items-empty-text" style={styles.emptyText}>
             No work items found. Please contact your contractor to assign work.
           </Text>
@@ -239,128 +393,168 @@ export function WorkItemListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.secondaryBackground,
-    padding: spacing.md,
+    backgroundColor: '#F3F4F6', // Sleek soft grey
+    paddingHorizontal: spacing.md,
   },
   menuBackdrop: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 5,
   },
   headerContainer: {
-    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
     zIndex: 12,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  userSection: {
+    flexDirection: 'column',
+  },
+  welcomeText: {
+    fontSize: fontSize.xs,
+    color: '#6B7280',
+    fontWeight: fontWeight.medium,
+    marginBottom: 2,
   },
   employeeName: {
     fontSize: fontSize.md,
     color: colors.textPrimary,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
   },
   menuWrapper: {
     position: 'relative',
   },
   menuButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  menuButtonText: {
-    color: colors.primary,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    lineHeight: spacing.xs,
+    padding: spacing.xxs,
+    borderRadius: radius.pill,
   },
   menuDropdown: {
     position: 'absolute',
-    top: spacing.xl,
+    top: perfectSize(42),
     right: 0,
     backgroundColor: colors.white,
+    borderRadius: radius.md,
+    minWidth: perfectSize(140),
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
     borderWidth: 1,
-    borderColor: colors.divider,
-    borderRadius: radius.sm,
-    minWidth: 120,
-    zIndex: 10,
+    borderColor: '#F1F5F9',
+    overflow: 'hidden',
   },
   menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  menuIcon: {
+    marginRight: spacing.xs,
+  },
   menuItemText: {
-    color: colors.primary,
+    color: colors.danger,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
+  },
+  title: {
+    fontSize: fontSize.xxl,
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+    marginTop: spacing.xxs,
   },
   card: {
     flex: 1,
     backgroundColor: colors.white,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    borderRadius: perfectSize(16),
+    padding: spacing.sm,
     marginBottom: spacing.sm,
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  title: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.xs,
-  },
-  listContent: {
-    paddingBottom: spacing.lg,
-  },
-  gridRow: {
-    gap: spacing.sm,
-  },
-  itemTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    minHeight: 38,
-    marginBottom: spacing.xs,
+  iconWrapper: {
+    width: perfectSize(20),
+    height: perfectSize(20),
+    borderRadius: perfectSize(14),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: radius.sm,
-    paddingVertical: spacing.xxs,
-    paddingHorizontal: spacing.xs,
-    marginBottom: spacing.sm,
+    paddingHorizontal: perfectSize(8),
+    paddingVertical: perfectSize(3),
+    borderRadius: radius.pill,
   },
   statusBadgeText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontSize: perfectSize(10),
+    fontWeight: fontWeight.bold,
   },
-  itemLabel: {
-    fontSize: fontSize.xs,
+  workCode: {
+    fontSize: perfectSize(15),
+    fontWeight: fontWeight.bold,
     color: colors.textPrimary,
     marginBottom: spacing.xxs,
+    letterSpacing: 0.2,
+  },
+  contractorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  contractorIcon: {
+    marginRight: 4,
+  },
+  contractorText: {
+    fontSize: perfectSize(11),
+    color: '#6B7280',
+    fontWeight: fontWeight.medium,
+    flex: 1,
+  },
+  progressSection: {
+    width: '100%',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xxs,
+  },
+  progressLabel: {
+    fontSize: perfectSize(10),
+    color: '#6B7280',
+    fontWeight: fontWeight.medium,
+  },
+  progressPercent: {
+    fontSize: perfectSize(10),
+    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
   },
   progressTrack: {
     width: '100%',
-    height: 7,
-    backgroundColor: '#E2E7EC',
-    borderRadius: radius.sm,
+    height: perfectSize(5),
+    backgroundColor: '#F3F4F6',
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
   },
-  progressText: {
-    marginTop: spacing.xxs,
-    marginBottom: spacing.xs,
-    fontSize: fontSize.xs,
-    color: colors.textPrimary,
-    fontWeight: fontWeight.semibold,
+  listContent: {
+    paddingBottom: spacing.xl,
   },
-  itemMeta: {
-    fontSize: fontSize.xs,
-    color: colors.textPrimary,
+  gridRow: {
+    gap: spacing.sm,
   },
   skeletonCard: {
     flex: 1,
@@ -372,35 +566,35 @@ const styles = StyleSheet.create({
     borderColor: '#E7ECF1',
   },
   skeletonTitle: {
-    height: 16,
+    height: perfectSize(16),
     borderRadius: radius.sm,
     backgroundColor: '#E7ECF1',
     marginBottom: spacing.sm,
   },
   skeletonBadge: {
-    width: '45%',
-    height: 18,
-    borderRadius: radius.sm,
+    width: '50%',
+    height: perfectSize(18),
+    borderRadius: radius.pill,
     backgroundColor: '#E7ECF1',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
   },
   skeletonProgressLine: {
     width: '100%',
-    height: 8,
-    borderRadius: radius.sm,
+    height: perfectSize(8),
+    borderRadius: radius.pill,
     backgroundColor: '#E7ECF1',
     marginBottom: spacing.xs,
   },
   skeletonProgressLineShort: {
-    width: '40%',
-    height: 8,
-    borderRadius: radius.sm,
+    width: '30%',
+    height: perfectSize(8),
+    borderRadius: radius.pill,
     backgroundColor: '#E7ECF1',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   skeletonMeta: {
     width: '70%',
-    height: 12,
+    height: perfectSize(12),
     borderRadius: radius.sm,
     backgroundColor: '#E7ECF1',
   },
@@ -408,13 +602,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xxxl,
     paddingHorizontal: spacing.lg,
   },
   emptyText: {
-    fontSize: fontSize.md,
-    color: colors.textPrimary,
+    fontSize: fontSize.sm,
+    color: '#6B7280',
+    fontWeight: fontWeight.medium,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    lineHeight: perfectSize(18),
+  },
+  errorText: {
+    fontSize: fontSize.sm,
+    color: colors.danger,
     fontWeight: fontWeight.semibold,
     textAlign: 'center',
+    marginVertical: spacing.md,
   },
 });
