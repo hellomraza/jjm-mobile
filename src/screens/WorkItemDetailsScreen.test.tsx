@@ -90,6 +90,11 @@ describe('WorkItemDetailsScreen', () => {
         status: 'IN_PROGRESS',
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-02T00:00:00Z',
+        district: { districtname: 'Patna' },
+        block: { blockname: 'Dulhin Bazar' },
+        panchayat: { panchayatname: 'Panchayat 1' },
+        village: { village: 'Village 1' },
+        contractor: { name: 'ABC Contractors', email: 'contractor@jjm.in' },
       },
       isLoading: false,
       isError: false,
@@ -235,10 +240,6 @@ describe('WorkItemDetailsScreen', () => {
 
     expect(mockRefetchWorkItem).toHaveBeenCalledTimes(1);
     expect(mockRefetchComponents).toHaveBeenCalledTimes(1);
-    expect(mockRefetchDistrict).toHaveBeenCalledTimes(1);
-    expect(mockRefetchBlock).toHaveBeenCalledTimes(1);
-    expect(mockRefetchPanchayat).toHaveBeenCalledTimes(1);
-    expect(mockRefetchUserById).toHaveBeenCalledTimes(1);
   });
 
   it('clamps progress fill style width between 0 and 100 percent', () => {
@@ -255,20 +256,17 @@ describe('WorkItemDetailsScreen', () => {
   });
 
   it('computes sticky button style using bottom inset', () => {
-    const defaultVerticalPadding = (0 + spacing.md) / 2;
-    const insetVerticalPadding = (20 + spacing.md) / 2;
-
     expect(getStickyButtonStyle(0)).toEqual({
       marginTop: 0,
-      paddingBottom: defaultVerticalPadding,
-      paddingTop: defaultVerticalPadding,
+      paddingBottom: spacing.md,
+      paddingTop: spacing.md,
       borderRadius: 0,
     });
 
     expect(getStickyButtonStyle(20)).toEqual({
       marginTop: 0,
-      paddingBottom: insetVerticalPadding,
-      paddingTop: insetVerticalPadding,
+      paddingBottom: 20 + spacing.md,
+      paddingTop: spacing.md,
       borderRadius: 0,
     });
   });

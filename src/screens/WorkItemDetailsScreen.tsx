@@ -1,8 +1,11 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useEffect, useRef } from 'react';
 import {
+  Animated,
   RefreshControl,
   ScrollView,
+  StatusBar,
   type StyleProp,
   StyleSheet,
   Text,
@@ -14,15 +17,15 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
-import { useLocationByTypeAndId } from '../hooks/useLocations';
-import { useUserById } from '../hooks/useUser';
 import { useWorkItem } from '../hooks/useWorkItems';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
+import { perfectSize } from '../utils/perfectSize';
 
 type WorkItemDetailsRouteProp = RouteProp<
   RootStackParamList,
@@ -118,14 +121,31 @@ function getStatusLabel(status: string): string {
     .replace(/^./, char => char.toUpperCase());
 }
 
-function getStatIconStyle(label: string): StyleProp<ViewStyle> {
-  switch (label) {
-    case 'Completed':
-      return styles.statIconCompleted;
-    case 'Pending':
-      return styles.statIconPending;
+function getStatusColor(status: string) {
+  const variant = getStatusVariant(status);
+  switch (variant) {
+    case 'approved':
+      return '#10B981'; // green
+    case 'pending':
+      return '#3B82F6'; // blue for in progress
+    case 'rejected':
+      return colors.danger;
     default:
-      return styles.statIconPrimary;
+      return '#6B7280';
+  }
+}
+
+function getStatusIcon(status: string) {
+  const variant = getStatusVariant(status);
+  switch (variant) {
+    case 'approved':
+      return 'check-circle-outline';
+    case 'pending':
+      return 'play-circle-outline';
+    case 'rejected':
+      return 'alert-circle-outline';
+    default:
+      return 'clock-outline';
   }
 }
 
@@ -142,6 +162,7 @@ export function WorkItemDetailsScreen() {
     refetch: refetchWorkItem,
     isRefetching: isRefetchingWorkItem,
   } = useWorkItem(workItemId);
+
   const {
     data: components,
     isLoading: isComponentsLoading,
@@ -150,49 +171,16 @@ export function WorkItemDetailsScreen() {
     isRefetching: isRefetchingComponents,
   } = useComponents(workItemId);
 
-  const districtId = toNumericId(workItem?.district_id);
-  const blockId = toNumericId(workItem?.block_id);
-  const panchayatId = toNumericId(workItem?.panchayat_id);
-
-  const {
-    data: district,
-    refetch: refetchDistrict,
-    isRefetching: isRefetchingDistrict,
-  } = useLocationByTypeAndId('districts', districtId);
-  const {
-    data: block,
-    refetch: refetchBlock,
-    isRefetching: isRefetchingBlock,
-  } = useLocationByTypeAndId('blocks', blockId);
-  const {
-    data: panchayat,
-    refetch: refetchPanchayat,
-    isRefetching: isRefetchingPanchayat,
-  } = useLocationByTypeAndId('panchayats', panchayatId);
-  const {
-    data: contractor,
-    refetch: refetchContractor,
-    isRefetching: isRefetchingContractor,
-  } = useUserById(workItem?.contractor_id);
-
   const handleRefresh = () => {
     Promise.allSettled([
       refetchWorkItem(),
       refetchComponents(),
-      refetchDistrict(),
-      refetchBlock(),
-      refetchPanchayat(),
-      refetchContractor(),
     ]);
   };
 
   const isRefreshing =
     isRefetchingWorkItem ||
-    isRefetchingComponents ||
-    isRefetchingDistrict ||
-    isRefetchingBlock ||
-    isRefetchingPanchayat ||
-    isRefetchingContractor;
+    isRefetchingComponents
 
   const componentCount = components?.length ?? 0;
   const componentStatusCounts = (components ?? []).reduce<
@@ -205,17 +193,23 @@ export function WorkItemDetailsScreen() {
   const pendingCount = componentCount - completedCount;
 
   const districtDisplay =
-    district?.districtname ??
-    (workItem?.district_id ? String(workItem.district_id) : 'N/A');
+    workItem?.district?.districtname ??
+    (workItem?.district_id ? String(workItem.district_id) : '---');
   const blockDisplay =
-    block?.blockname ??
-    (workItem?.block_id ? String(workItem.block_id) : 'N/A');
+    workItem?.block?.blockname ??
+    (workItem?.block_id ? String(workItem.block_id) : '---');
   const panchayatDisplay =
-    panchayat?.panchayatname ??
-    (workItem?.panchayat_id ? String(workItem.panchayat_id) : 'N/A');
+    workItem?.panchayat?.panchayatname ??
+    (workItem?.panchayat_id ? String(workItem.panchayat_id) : '---');
+
+  const villageToDisplay =
+    workItem?.village?.villagename ??
+    (workItem?.village_id ? String(workItem.village_id) : '---');
 
   const contractorDisplay =
-    contractor?.name ?? workItem?.contractor_id ?? 'N/A';
+    workItem?.contractor?.name || '---';
+  const contractorEmailDisplay =
+    workItem?.contractor?.email || '---';
   const progressPercent =
     componentCount > 0
       ? Math.round((completedCount / componentCount) * 100)
@@ -223,16 +217,45 @@ export function WorkItemDetailsScreen() {
   const progressFillStyle = getProgressFillStyle(progressPercent);
   const viewComponentsButtonStyle = getStickyButtonStyle(insets.bottom);
 
+  // Animated pulse opacity for skeleton loader
+  const skeletonOpacity = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    let anim: Animated.CompositeAnimation | undefined;
+    if (isWorkItemLoading) {
+      anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(skeletonOpacity, {
+            toValue: 1,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+          Animated.timing(skeletonOpacity, {
+            toValue: 0.4,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+      anim.start();
+    }
+    return () => anim?.stop();
+  }, [isWorkItemLoading, skeletonOpacity]);
+
   if (isWorkItemLoading) {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
-        <BackButton
-          onPress={() => navigation.goBack()}
-          testID="work-item-details-back-button"
-        />
-        <ScrollView
+        <View style={styles.navBar}>
+          <BackButton
+            onPress={() => navigation.goBack()}
+            testID="work-item-details-back-button"
+          />
+          <Text style={styles.navTitle}>Work Details</Text>
+          <View style={styles.navPlaceholder} />
+        </View>
+        <Animated.ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          style={{ opacity: skeletonOpacity }}
           testID="work-item-details-skeleton-list"
         >
           <View
@@ -255,7 +278,7 @@ export function WorkItemDetailsScreen() {
             <View style={styles.skeletonLineMedium} />
             <View style={styles.skeletonLineSmall} />
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
     );
   }
@@ -263,19 +286,40 @@ export function WorkItemDetailsScreen() {
   if (isWorkItemError || !workItem) {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
-        <Text testID="work-item-details-error-text">
-          Failed to load work details.
-        </Text>
+        <View style={styles.navBar}>
+          <BackButton
+            onPress={() => navigation.goBack()}
+            testID="work-item-details-back-button"
+          />
+          <Text style={styles.navTitle}>Work Details</Text>
+          <View style={styles.navPlaceholder} />
+        </View>
+        <View style={styles.errorContainer}>
+          <Text testID="work-item-details-error-text" style={styles.errorText}>
+            Failed to load work details.
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
 
+  const activeStatusColor = getStatusColor(workItem.status);
+  const activeStatusIcon = getStatusIcon(workItem.status);
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
-      <BackButton
-        onPress={() => navigation.goBack()}
-        testID="work-item-details-back-button"
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
+
+      {/* Centered Navigation Header Bar */}
+      <View style={styles.navBar}>
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="work-item-details-back-button"
+        />
+        <Text style={styles.navTitle}>Work Details</Text>
+        <View style={styles.navPlaceholder} />
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -283,54 +327,55 @@ export function WorkItemDetailsScreen() {
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Header Card with Title and Status */}
+        {/* Hero Header Card with Title, Status, and Progress */}
         <View style={styles.headerCard}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{workItem.title || title}</Text>
+          <View style={styles.heroHeaderRow}>
+            <View style={[styles.statusIconWrapper, { backgroundColor: activeStatusColor + '1A' }]}>
+              <Icon name={activeStatusIcon} size={perfectSize(22)} color={activeStatusColor} />
+            </View>
             <StatusBadge status={workItem.status} />
           </View>
-          <Text style={styles.workCode}>{workItem.work_code}</Text>
-        </View>
+          <Text style={styles.title}>{workItem.title || title}</Text>
 
-        {/* Work Progress Card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Work Progress</Text>
+          <View style={styles.sectionDivider} />
+
           <View style={styles.progressContainer}>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, progressFillStyle]} />
+            <View style={styles.progressHeaderRow}>
+              <Text style={styles.progressLabel}>Overall Completion</Text>
+              <Text style={[styles.progressPercentText, { color: activeStatusColor }]}>
+                {progressPercent}% Complete
+              </Text>
             </View>
-            <Text style={styles.progressText}>{progressPercent}% Complete</Text>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, progressFillStyle, { backgroundColor: activeStatusColor }]} />
+            </View>
           </View>
         </View>
 
-        {/* Description Card */}
+        {/* Unified Detail Card (Scheme Specifications, Location, Contractor) */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.descriptionText}>
-            {workItem.description || 'No description available'}
-          </Text>
+          <Text style={styles.sectionTitle}>Scheme Specifications</Text>
+          <DetailRow label="Scheme Type" value={workItem.schemetype || '---'} icon="water-outline" />
+          <DetailRow label="No FHTC" value={workItem.nofhtc ? String(workItem.nofhtc) : '---'} icon="home-outline" last />
+
+          <View style={styles.sectionDivider} />
+
+          <Text style={styles.sectionTitle}>Location Details</Text>
+          <DetailRow label="District" value={districtDisplay} icon="map-marker-outline" />
+          <DetailRow label="Block" value={blockDisplay} icon="map-marker-radius-outline" />
+          <DetailRow label="Panchayat" value={panchayatDisplay} icon="map-legend" />
+          <DetailRow label="Village" value={villageToDisplay} icon="map-legend" last />
+
+          <View style={styles.sectionDivider} />
+
+          <Text style={styles.sectionTitle}>Contractor Profile</Text>
+          <DetailRow label="Company Name" value={contractorDisplay} icon="briefcase-outline" />
+          {contractorEmailDisplay ? (
+            <DetailRow label="Email Address" value={contractorEmailDisplay} icon="email-outline" last />
+          ) : null}
         </View>
 
-        {/* Location Card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Location</Text>
-          <DetailRow label="District" value={districtDisplay} />
-          <DetailRow label="Block" value={blockDisplay} />
-          <DetailRow label="Panchayat" value={panchayatDisplay} last />
-        </View>
-
-        {/* Contractor Card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Contractor</Text>
-          <DetailRow label="Name / ID" value={contractorDisplay} />
-          {contractor?.email ? (
-            <DetailRow label="Email" value={contractor.email} last />
-          ) : (
-            <View style={styles.detailRow} />
-          )}
-        </View>
-
-        {/* Component Status Card */}
+        {/* Component Status Metrics */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Component Status</Text>
           {isComponentsLoading ? (
@@ -352,37 +397,39 @@ export function WorkItemDetailsScreen() {
                 <StatCard
                   label="Total"
                   value={componentCount}
-                  iconStyle={styles.statIconPrimary}
+                  icon="file-document-outline"
+                  color="#3B82F6"
+                  bgColor="#DBEAFE"
                 />
                 <StatCard
                   label="Completed"
                   value={completedCount}
-                  iconStyle={styles.statIconCompleted}
+                  icon="check-circle-outline"
+                  color="#10B981"
+                  bgColor="#D1FAE5"
                   testID="component-completed-count"
                 />
                 <StatCard
                   label="Pending"
                   value={pendingCount}
-                  iconStyle={styles.statIconPending}
+                  icon="clock-outline"
+                  color="#F59E0B"
+                  bgColor="#FEF3C7"
                   testID="component-pending-count"
                 />
               </View>
 
               {Object.keys(componentStatusCounts).length > 0 && (
                 <View style={styles.statusBreakdown}>
-                  <Text style={styles.breakdownTitle}>Breakdown</Text>
+                  <Text style={styles.breakdownTitle}>Status Breakdown</Text>
                   {Object.entries(componentStatusCounts).map(
-                    ([status, count]) => (
+                    ([status, count], index, array) => (
                       <DetailRow
                         key={status}
-                        label={status}
+                        label={getStatusLabel(status)}
                         value={String(count)}
-                        last={
-                          status ===
-                          Object.keys(componentStatusCounts)[
-                            Object.keys(componentStatusCounts).length - 1
-                          ]
-                        }
+                        icon="chart-pie"
+                        last={index === array.length - 1}
                       />
                     ),
                   )}
@@ -416,11 +463,13 @@ export function WorkItemDetailsScreen() {
 function DetailRow({
   label,
   value,
+  icon,
   testID,
   last = false,
 }: {
   label: string;
   value: string;
+  icon?: string;
   testID?: string;
   last?: boolean;
 }) {
@@ -429,8 +478,13 @@ function DetailRow({
       style={[styles.detailRow, last && styles.detailRowLast]}
       testID={testID}
     >
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+      <View style={styles.detailLabelRow}>
+        {icon ? (
+          <Icon name={icon} size={perfectSize(16)} color="#9CA3AF" style={styles.detailIcon} />
+        ) : null}
+        <Text style={styles.detailLabel}>{label}</Text>
+      </View>
+      <Text numberOfLines={2} style={styles.detailValue}>{value}</Text>
     </View>
   );
 }
@@ -452,20 +506,24 @@ function StatusBadge({ status }: { status: string }) {
 function StatCard({
   label,
   value,
-  iconStyle,
+  icon,
+  color,
+  bgColor,
   testID,
 }: {
   label: string;
   value: number;
-  iconStyle: StyleProp<ViewStyle>;
+  icon: string;
+  color: string;
+  bgColor: string;
   testID?: string;
 }) {
-  const resolvedIconStyle = iconStyle ?? getStatIconStyle(label);
-
   return (
     <View style={styles.statCard} testID={testID}>
-      <View style={[styles.statIcon, resolvedIconStyle]} />
-      <Text style={styles.statValue}>{value}</Text>
+      <View style={[styles.statIconWrapper, { backgroundColor: bgColor }]}>
+        <Icon name={icon} size={perfectSize(18)} color={color} />
+      </View>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
@@ -488,8 +546,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: 'column',
-    backgroundColor: colors.secondaryBackground,
-    paddingTop: spacing.md,
+    backgroundColor: '#F3F4F6', // light grey matching dashboard background
+  },
+  navBar: {
+    height: perfectSize(48),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    backgroundColor: '#F3F4F6',
+  },
+  navBackButton: {
+    padding: 0,
+    backgroundColor: 'transparent',
+  },
+  navTitle: {
+    fontSize: fontSize.md,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
+    textAlign: 'center',
+  },
+  navPlaceholder: {
+    width: perfectSize(40), // matches back button hit space to center title
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
@@ -497,90 +575,129 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
 
-  /* Header Card */
+  /* Hero Header Card */
   headerCard: {
     backgroundColor: colors.white,
-    borderRadius: radius.md,
+    borderRadius: perfectSize(16),
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#E5E7EB',
     marginBottom: spacing.md,
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
     elevation: 2,
   },
-  titleContainer: {
+  heroHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  statusIconWrapper: {
+    width: perfectSize(36),
+    height: perfectSize(36),
+    borderRadius: perfectSize(18),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
-    flex: 1,
-    marginRight: spacing.sm,
+    fontSize: fontSize.lg,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
+    lineHeight: perfectSize(24),
+    marginTop: spacing.xxs,
+  },
+  workCodeWrapper: {
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  workCodeLabel: {
+    fontSize: perfectSize(9),
+    color: '#9CA3AF',
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
   },
   workCode: {
-    fontSize: fontSize.xs,
-    color: colors.textPrimary,
-    fontWeight: fontWeight.semibold,
-    marginTop: spacing.xs,
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+    marginTop: 2,
   },
 
   /* Standard Card */
   card: {
     backgroundColor: colors.white,
-    borderRadius: radius.md,
+    borderRadius: perfectSize(16),
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#E5E7EB',
     marginBottom: spacing.md,
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
     elevation: 2,
   },
 
   /* Section Title */
   sectionTitle: {
     fontSize: fontSize.md,
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing.md,
+  },
+  subSectionTitle: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: spacing.md,
   },
 
   /* Progress Section */
   progressContainer: {
-    gap: spacing.md,
+    gap: spacing.xs,
+  },
+  progressHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xxs,
+  },
+  progressLabel: {
+    fontSize: fontSize.xs,
+    color: '#6B7280',
+    fontWeight: fontWeight.medium,
+  },
+  progressPercentText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
   },
   progressTrack: {
-    height: 7,
-    backgroundColor: '#E2E7EC',
+    height: perfectSize(6),
+    backgroundColor: '#E5E7EB',
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
     borderRadius: radius.pill,
-  },
-  progressText: {
-    fontSize: fontSize.xs,
-    color: colors.textPrimary,
-    fontWeight: fontWeight.semibold,
-    textAlign: 'left',
   },
 
   /* Description */
   descriptionText: {
     fontSize: fontSize.sm,
-    color: colors.textPrimary,
-    lineHeight: 20,
+    color: '#4B5563',
+    lineHeight: perfectSize(20),
   },
 
   /* Detail Row */
@@ -595,37 +712,44 @@ const styles = StyleSheet.create({
   detailRowLast: {
     borderBottomWidth: 0,
   },
+  detailLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  detailIcon: {
+    marginRight: spacing.xs,
+  },
   detailLabel: {
     fontSize: fontSize.sm,
     color: '#6B7280',
     fontWeight: fontWeight.medium,
-    flex: 1,
-    marginRight: spacing.sm,
   },
   detailValue: {
     fontSize: fontSize.sm,
     color: colors.textPrimary,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
     textAlign: 'right',
+    maxWidth: '65%',
   },
 
   /* Status Badge */
   statusBadge: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: radius.sm,
+    paddingVertical: perfectSize(3),
+    borderRadius: radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
   },
   statusBadgeText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontSize: perfectSize(11),
+    fontWeight: fontWeight.bold,
   },
   statusBadgeApproved: {
-    backgroundColor: '#EAF8EE',
+    backgroundColor: '#D1FAE5',
   },
   statusBadgePending: {
-    backgroundColor: '#FFF7E6',
+    backgroundColor: '#DBEAFE', // unified blue for pending / in progress
   },
   statusBadgeRejected: {
     backgroundColor: '#FDECEC',
@@ -634,10 +758,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF1F4',
   },
   statusBadgeTextApproved: {
-    color: '#1E8E3E',
+    color: '#10B981',
   },
   statusBadgeTextPending: {
-    color: '#B27A00',
+    color: '#3B82F6',
   },
   statusBadgeTextRejected: {
     color: colors.danger,
@@ -651,16 +775,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
   },
   statCard: {
     flex: 1,
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
     borderRadius: radius.md,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  statIconWrapper: {
+    width: perfectSize(32),
+    height: perfectSize(32),
+    borderRadius: perfectSize(16),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
   statIcon: {
     width: 12,
@@ -679,12 +817,11 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: fontSize.lg,
-    color: colors.primary,
     fontWeight: fontWeight.bold,
-    marginBottom: spacing.xxs,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: fontSize.xs,
+    fontSize: perfectSize(11),
     color: '#6B7280',
     fontWeight: fontWeight.medium,
   },
@@ -694,11 +831,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
     paddingTop: spacing.md,
+    marginTop: spacing.md,
   },
   breakdownTitle: {
     fontSize: fontSize.sm,
     color: '#6B7280',
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
     marginBottom: spacing.sm,
   },
 
@@ -706,7 +844,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     backgroundColor: colors.white,
     borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    borderTopColor: '#E5E7EB',
   },
 
   /* Utility Styles */
@@ -716,7 +854,20 @@ const styles = StyleSheet.create({
   },
   viewComponentsButtonText: {
     fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: fontSize.sm,
+    color: colors.danger,
+    fontWeight: fontWeight.semibold,
+  },
+
+  /* Skeleton Loading lines */
   skeletonLineLarge: {
     width: '75%',
     height: 18,
