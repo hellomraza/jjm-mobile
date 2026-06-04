@@ -93,7 +93,7 @@ describe('WorkItemDetailsScreen', () => {
         district: { districtname: 'Patna' },
         block: { blockname: 'Dulhin Bazar' },
         panchayat: { panchayatname: 'Panchayat 1' },
-        village: { village: 'Village 1' },
+        village: { villagename: 'Village 1' },
         contractor: { name: 'ABC Contractors', email: 'contractor@jjm.in' },
       },
       isLoading: false,
