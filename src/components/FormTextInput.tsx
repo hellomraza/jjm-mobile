@@ -50,6 +50,7 @@ export function FormTextInput({
           ]}
           testID={testID}
           secureTextEntry={showPasswordToggle && !isPasswordVisible}
+          placeholderTextColor={colors.text}
           {...textInputProps}
         />
         {showPasswordToggle ? (
