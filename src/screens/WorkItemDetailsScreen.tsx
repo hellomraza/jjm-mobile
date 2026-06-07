@@ -17,8 +17,6 @@ import {
 import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
-import { useLocationByTypeAndId } from '../hooks/useLocations';
-import { useUserById } from '../hooks/useUser';
 import { useWorkItem } from '../hooks/useWorkItems';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
@@ -150,49 +148,11 @@ export function WorkItemDetailsScreen() {
     isRefetching: isRefetchingComponents,
   } = useComponents(workItemId);
 
-  const districtId = toNumericId(workItem?.district_id);
-  const blockId = toNumericId(workItem?.block_id);
-  const panchayatId = toNumericId(workItem?.panchayat_id);
-
-  const {
-    data: district,
-    refetch: refetchDistrict,
-    isRefetching: isRefetchingDistrict,
-  } = useLocationByTypeAndId('districts', districtId);
-  const {
-    data: block,
-    refetch: refetchBlock,
-    isRefetching: isRefetchingBlock,
-  } = useLocationByTypeAndId('blocks', blockId);
-  const {
-    data: panchayat,
-    refetch: refetchPanchayat,
-    isRefetching: isRefetchingPanchayat,
-  } = useLocationByTypeAndId('panchayats', panchayatId);
-  const {
-    data: contractor,
-    refetch: refetchContractor,
-    isRefetching: isRefetchingContractor,
-  } = useUserById(workItem?.contractor_id);
-
   const handleRefresh = () => {
-    Promise.allSettled([
-      refetchWorkItem(),
-      refetchComponents(),
-      refetchDistrict(),
-      refetchBlock(),
-      refetchPanchayat(),
-      refetchContractor(),
-    ]);
+    Promise.allSettled([refetchWorkItem(), refetchComponents()]);
   };
 
-  const isRefreshing =
-    isRefetchingWorkItem ||
-    isRefetchingComponents ||
-    isRefetchingDistrict ||
-    isRefetchingBlock ||
-    isRefetchingPanchayat ||
-    isRefetchingContractor;
+  const isRefreshing = isRefetchingWorkItem || isRefetchingComponents;
 
   const componentCount = components?.length ?? 0;
   const componentStatusCounts = (components ?? []).reduce<
@@ -205,17 +165,22 @@ export function WorkItemDetailsScreen() {
   const pendingCount = componentCount - completedCount;
 
   const districtDisplay =
-    district?.districtname ??
-    (workItem?.district_id ? String(workItem.district_id) : 'N/A');
+    workItem?.district?.districtname ??
+    (workItem?.district_id ? String(workItem.district_id) : '---');
   const blockDisplay =
-    block?.blockname ??
-    (workItem?.block_id ? String(workItem.block_id) : 'N/A');
+    workItem?.block?.blockname ??
+    (workItem?.block_id ? String(workItem.block_id) : '---');
   const panchayatDisplay =
-    panchayat?.panchayatname ??
-    (workItem?.panchayat_id ? String(workItem.panchayat_id) : 'N/A');
+    workItem?.panchayat?.panchayatname ??
+    (workItem?.panchayat_id ? String(workItem.panchayat_id) : '---');
 
-  const contractorDisplay =
-    contractor?.name ?? workItem?.contractor_id ?? 'N/A';
+  const villageToDisplay =
+    workItem?.village?.villagename ??
+    (workItem?.village_id ? String(workItem.village_id) : '---');
+
+  const contractorDisplay = workItem?.contractor?.name || '---';
+  const contractorEmailDisplay = workItem?.contractor?.email || '---';
+
   const progressPercent =
     componentCount > 0
       ? Math.round((completedCount / componentCount) * 100)
@@ -289,12 +254,6 @@ export function WorkItemDetailsScreen() {
             <Text style={styles.title}>{workItem.title || title}</Text>
             <StatusBadge status={workItem.status} />
           </View>
-          <Text style={styles.workCode}>{workItem.work_code}</Text>
-        </View>
-
-        {/* Work Progress Card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Work Progress</Text>
           <View style={styles.progressContainer}>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, progressFillStyle]} />
@@ -303,28 +262,21 @@ export function WorkItemDetailsScreen() {
           </View>
         </View>
 
-        {/* Description Card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.descriptionText}>
-            {workItem.description || 'No description available'}
-          </Text>
-        </View>
-
         {/* Location Card */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Location</Text>
           <DetailRow label="District" value={districtDisplay} />
           <DetailRow label="Block" value={blockDisplay} />
-          <DetailRow label="Panchayat" value={panchayatDisplay} last />
+          <DetailRow label="Panchayat" value={panchayatDisplay} />
+          <DetailRow label="Village" value={villageToDisplay} last />
         </View>
 
         {/* Contractor Card */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Contractor</Text>
           <DetailRow label="Name / ID" value={contractorDisplay} />
-          {contractor?.email ? (
-            <DetailRow label="Email" value={contractor.email} last />
+          {contractorEmailDisplay !== '---' ? (
+            <DetailRow label="Email" value={contractorEmailDisplay} last />
           ) : (
             <View style={styles.detailRow} />
           )}
@@ -349,11 +301,6 @@ export function WorkItemDetailsScreen() {
           {!isComponentsLoading && !isComponentsError ? (
             <>
               <View style={styles.statsContainer}>
-                <StatCard
-                  label="Total"
-                  value={componentCount}
-                  iconStyle={styles.statIconPrimary}
-                />
                 <StatCard
                   label="Completed"
                   value={completedCount}
@@ -469,19 +416,6 @@ function StatCard({
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
-}
-
-function toNumericId(value: string | number | undefined) {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : undefined;
-  }
-
-  if (typeof value === 'string') {
-    const numericValue = Number(value);
-    return Number.isFinite(numericValue) ? numericValue : undefined;
-  }
-
-  return undefined;
 }
 
 const styles = StyleSheet.create({
