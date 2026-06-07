@@ -52,6 +52,28 @@ function getPhotoStatusesSummaryText(
   return parts.join(' · ');
 }
 
+function formatProgress(progress?: string, quantity?: string) {
+  const progressNum = parseFloat(progress || '0');
+  const quantityNum = quantity ? parseFloat(quantity) : undefined;
+
+  if (typeof quantityNum === 'number' && quantityNum > 0) {
+    return `${progressNum} / ${quantityNum}`;
+  }
+
+  return progress;
+}
+
+function getProgressPercent(progress?: string, quantity?: string) {
+  const progressNum = parseFloat(progress || '0');
+  const quantityNum = quantity ? parseFloat(quantity) : undefined;
+
+  if (typeof quantityNum === 'number' && quantityNum > 0) {
+    return Math.max(0, Math.min(100, (progressNum / quantityNum) * 100));
+  }
+
+  return Math.max(0, Math.min(100, progressNum));
+}
+
 function sortPhotoStatuses(
   photoStatuses:
     | Array<{
@@ -80,27 +102,6 @@ function sortPhotoStatuses(
 
     return rightTimestamp.localeCompare(leftTimestamp);
   });
-}
-
-function getPreviewPhotoUrl(
-  photoStatuses:
-    | Array<{
-        id: string;
-        status: 'UPLOADED' | 'SELECTED' | 'APPROVED';
-        photo?: { image_url: string };
-        created_at?: string;
-        selected_at?: string | null;
-        approved_at?: string | null;
-      }>
-    | undefined,
-) {
-  if (!photoStatuses?.length) {
-    return undefined;
-  }
-
-  const orderedStatuses = sortPhotoStatuses(photoStatuses);
-
-  return orderedStatuses[0]?.photo?.image_url;
 }
 
 function getApprovedPhotoStatuses(
@@ -215,6 +216,11 @@ export function UploadPhotoScreen() {
   const isBusy = mutation.isPending || uploadStage !== 'idle';
   const uploadProgressPercent = Math.max(0, Math.min(100, cloudinaryProgress));
 
+  const progressPercent = getProgressPercent(
+    currentComponent?.progress,
+    currentComponent?.quantity,
+  );
+
   const getLoadingLabel = () => {
     if (uploadStage === 'compressing') {
       return 'Compressing...';
@@ -293,8 +299,8 @@ export function UploadPhotoScreen() {
           name: compressedImage.name,
         },
         {
-          onProgress: progressPercent => {
-            setCloudinaryProgress(progressPercent);
+          onProgress: _progress => {
+            setCloudinaryProgress(_progress);
           },
         },
       );
@@ -360,16 +366,16 @@ export function UploadPhotoScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <View style={styles.backButtonRow}>
+        <BackButton
+          onPress={() => navigation.goBack()}
+          testID="upload-back-button"
+        />
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.backButtonRow}>
-          <BackButton
-            onPress={() => navigation.goBack()}
-            testID="upload-back-button"
-          />
-        </View>
 
         <View style={styles.headerCard}>
           <View style={styles.headerTitleRow}>
@@ -393,6 +399,22 @@ export function UploadPhotoScreen() {
             </View>
           </View>
           <Text style={styles.subtitle}>{componentName}</Text>
+          <View
+            style={styles.progressTrack}
+            testID={`component-progress-track-${componentId}`}
+          >
+            <View
+              style={[styles.progressFill, { width: `${progressPercent}%` }]}
+              testID={`component-progress-fill-${componentId}`}
+            />
+          </View>
+          <Text style={styles.meta}>
+            Progress:{' '}
+            {formatProgress(
+              currentComponent?.progress,
+              currentComponent?.quantity,
+            )}
+          </Text>
         </View>
 
         <View style={styles.card}>
@@ -541,6 +563,7 @@ export function UploadPhotoScreen() {
                 value={progress}
                 onChangeText={setProgress}
                 placeholder="Enter completed progress"
+                placeholderTextColor={colors.inputBorder}
                 keyboardType="numeric"
                 testID="upload-progress-input"
               />
@@ -609,7 +632,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   backButtonRow: {
-    marginTop: spacing.sm,
     marginBottom: spacing.sm,
   },
   headerCard: {
@@ -673,7 +695,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.md,
     color: colors.textPrimary,
-    marginBottom: spacing.xxs,
+    marginBottom: spacing.sm,
   },
   metaText: {
     fontSize: fontSize.sm,
@@ -770,7 +792,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   label: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
     marginTop: spacing.md,
@@ -783,7 +805,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
@@ -834,5 +856,22 @@ const styles = StyleSheet.create({
   centeredContainer: {
     flex: 1,
     justifyContent: 'center',
+  },
+  progressTrack: {
+    height: 7,
+    borderRadius: radius.pill,
+    backgroundColor: '#E2E7EC',
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  meta: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    marginTop: spacing.xxs,
   },
 });
