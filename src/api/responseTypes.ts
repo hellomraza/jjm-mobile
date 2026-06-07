@@ -83,6 +83,37 @@ export interface WorkItemResponseDto {
   status: WorkItemStatus;
   created_at: string;
   updated_at: string;
+  district?: DistrictResponseDto;
+  block?: BlockResponseDto;
+  panchayat?: PanchayatResponseDto;
+  village?: VillageResponseDto;
+}
+
+interface DistrictResponseDto {
+  id: string;
+  districtname: string;
+  district_code: string;
+}
+
+interface BlockResponseDto {
+  id: string;
+  blockname: string;
+  block_code: string;
+  district_id: string;
+}
+
+interface PanchayatResponseDto {
+  id: string;
+  panchayatname: string;
+  panchayat_code: string;
+  block_id: string;
+}
+
+interface VillageResponseDto {
+  id: string;
+  villagename: string;
+  village_code: string;
+  panchayat_id: string;
 }
 
 export interface ComponentResponseDto {
