@@ -226,7 +226,6 @@ export function ComponentListScreen() {
       />
       <View style={styles.headerCard}>
         <Text style={styles.title}>Components</Text>
-        <Text style={styles.subtitle}>{title}</Text>
         <Text style={styles.caption}>Work Code: {work_code}</Text>
       </View>
 
