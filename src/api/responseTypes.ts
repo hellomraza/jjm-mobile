@@ -56,6 +56,7 @@ export interface AgreementResponseDto {
   work_id: string;
   created_at: string;
   updated_at: string;
+  contractor?: Contractor;
 }
 
 export interface WorkItemResponseDto {

@@ -49,7 +49,7 @@ export function LoginScreen() {
                 password: normalizedPassword,
               });
 
-              navigation.replace('WorkItemList');
+              navigation.replace('AgreementList');
             } catch (error: unknown) {
               const fallbackMessage = 'Login failed. Please try again.';
               const responseMessage = (

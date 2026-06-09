@@ -1,25 +1,19 @@
 import React from 'react';
 import { FlatList } from 'react-native';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { WorkItemListScreen } from './WorkItemListScreen';
+import { AgreementListScreen } from './AgreementListScreen';
 
 const mockNavigate = jest.fn();
 const mockReplace = jest.fn();
-const mockGoBack = jest.fn();
 const mockLogout = jest.fn();
-const mockUseWorkItems = jest.fn();
+const mockUseAgreements = jest.fn();
 const mockUseUser = jest.fn();
-const mockRefetchWorkItems = jest.fn();
+const mockRefetchAgreements = jest.fn();
 const mockRefetchUser = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
-  useNavigation: () => ({ navigate: mockNavigate, replace: mockReplace, goBack: mockGoBack }),
-  useRoute: () => ({
-    params: {
-      agreementId: 'agreement-1',
-    },
-  }),
+  useNavigation: () => ({ navigate: mockNavigate, replace: mockReplace }),
 }));
 
 jest.mock('../hooks/useAuth', () => ({
@@ -28,19 +22,19 @@ jest.mock('../hooks/useAuth', () => ({
   }),
 }));
 
-jest.mock('../hooks/useWorkItems', () => ({
-  useWorkItems: (agreementId: string) => mockUseWorkItems(agreementId),
+jest.mock('../hooks/useAgreements', () => ({
+  useAgreements: (search?: string) => mockUseAgreements(search),
 }));
 
 jest.mock('../hooks/useUser', () => ({
   useUser: () => mockUseUser(),
 }));
 
-describe('WorkItemListScreen', () => {
+describe('AgreementListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLogout.mockResolvedValue(undefined);
-    mockRefetchWorkItems.mockResolvedValue(undefined);
+    mockRefetchAgreements.mockResolvedValue(undefined);
     mockRefetchUser.mockResolvedValue(undefined);
     mockUseUser.mockReturnValue({
       data: null,
@@ -53,80 +47,64 @@ describe('WorkItemListScreen', () => {
     let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
 
     await act(async () => {
-      renderer = ReactTestRenderer.create(<WorkItemListScreen />);
+      renderer = ReactTestRenderer.create(<AgreementListScreen />);
     });
 
     return renderer!.root;
   }
 
   it('shows loading state', async () => {
-    mockUseWorkItems.mockReturnValue({
+    mockUseAgreements.mockReturnValue({
       data: undefined,
       isLoading: true,
       isError: false,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
 
     const root = await renderScreen();
     expect(
-      root.findByProps({ testID: 'work-items-skeleton-list' }),
+      root.findByProps({ testID: 'agreement-skeleton-list' }),
     ).toBeTruthy();
-    expect(root.findByProps({ testID: 'work-item-skeleton-0' })).toBeTruthy();
+    expect(root.findByProps({ testID: 'agreement-skeleton-0' })).toBeTruthy();
   });
 
   it('shows error state', async () => {
-    mockUseWorkItems.mockReturnValue({
+    mockUseAgreements.mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
 
     const root = await renderScreen();
-    expect(root.findByProps({ testID: 'work-items-error-text' })).toBeTruthy();
+    expect(root.findByProps({ testID: 'agreement-error-text' })).toBeTruthy();
   });
 
   it('shows empty state', async () => {
-    mockUseWorkItems.mockReturnValue({
+    mockUseAgreements.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
 
     const root = await renderScreen();
-    expect(root.findByProps({ testID: 'work-items-empty-text' })).toBeTruthy();
+    expect(root.findByProps({ testID: 'agreement-empty-text' })).toBeTruthy();
   });
 
-  it('renders list and navigates to details on item press', async () => {
-    mockUseWorkItems.mockReturnValue({
+  it('renders list and navigates to work items on item press', async () => {
+    mockUseAgreements.mockReturnValue({
       data: {
         data: [
           {
-            id: 'work-item-1',
-            work_code: 'WI-2026-0001',
-            title: 'Install Pipeline — Block A',
-            description: 'desc',
-            district_id: 'district-1',
-            block_id: 101,
-            panchayat_id: 201,
-            village_id: 301,
-            subdivision_id: 401,
-            circle_id: 501,
-            zone_id: 601,
-            schemetype: 'PWS',
-            nofhtc: '1250',
-            amount_approved: 1250000.5,
-            payment_amount: 450000.75,
-            serial_no: 1,
+            id: 'agreement-1',
+            agreementno: 'AGR-2026-0001',
+            agreementyear: '2026',
             contractor_id: 'contractor-1',
-            latitude: 25.5941,
-            longitude: 85.1376,
-            progress_percentage: 35,
-            status: 'IN_PROGRESS',
+            work_id: 'work-1',
             created_at: '2026-01-10T08:00:00Z',
             updated_at: '2026-03-10T12:00:00Z',
           },
@@ -135,76 +113,73 @@ describe('WorkItemListScreen', () => {
       },
       isLoading: false,
       isError: false,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
 
     const root = await renderScreen();
 
     expect(
-      root.findByProps({ testID: 'work-item-card-work-item-1' }),
+      root.findByProps({ testID: 'agreement-card-agreement-1' }),
     ).toBeTruthy();
-    expect(root.findByType(FlatList).props.numColumns).toBe(2);
 
     act(() => {
       root
-        .findByProps({ testID: 'work-item-card-work-item-1' })
+        .findByProps({ testID: 'agreement-card-agreement-1' })
         .props.onPress();
     });
 
-    expect(mockUseWorkItems).toHaveBeenCalledWith('agreement-1');
-    expect(mockNavigate).toHaveBeenCalledWith('WorkItemDetails', {
-      workItemId: 'work-item-1',
-      title: 'Install Pipeline — Block A',
+    expect(mockNavigate).toHaveBeenCalledWith('WorkItemList', {
+      agreementId: 'agreement-1',
     });
   });
 
   it('closes menu when tapping outside dropdown', async () => {
-    mockUseWorkItems.mockReturnValue({
+    mockUseAgreements.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
 
     const root = await renderScreen();
 
     await act(async () => {
-      root.findByProps({ testID: 'work-items-menu-button' }).props.onPress();
+      root.findByProps({ testID: 'agreement-menu-button' }).props.onPress();
     });
 
     expect(
-      root.findByProps({ testID: 'work-items-menu-dropdown' }),
+      root.findByProps({ testID: 'agreement-menu-dropdown' }),
     ).toBeTruthy();
 
     await act(async () => {
-      root.findByProps({ testID: 'work-items-menu-backdrop' }).props.onPress();
+      root.findByProps({ testID: 'agreement-menu-backdrop' }).props.onPress();
     });
 
     expect(() =>
-      root.findByProps({ testID: 'work-items-menu-dropdown' }),
+      root.findByProps({ testID: 'agreement-menu-dropdown' }),
     ).toThrow();
   });
 
   it('logs out and navigates to login on logout press', async () => {
-    mockUseWorkItems.mockReturnValue({
+    mockUseAgreements.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
 
     const root = await renderScreen();
 
     await act(async () => {
-      root.findByProps({ testID: 'work-items-menu-button' }).props.onPress();
+      root.findByProps({ testID: 'agreement-menu-button' }).props.onPress();
     });
 
     await act(async () => {
       await root
-        .findByProps({ testID: 'work-items-logout-button' })
+        .findByProps({ testID: 'agreement-logout-button' })
         .props.onPress();
     });
 
@@ -213,11 +188,11 @@ describe('WorkItemListScreen', () => {
   });
 
   it('shows employee name in header', async () => {
-    mockUseWorkItems.mockReturnValue({
+    mockUseAgreements.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
     mockUseUser.mockReturnValue({
@@ -237,18 +212,18 @@ describe('WorkItemListScreen', () => {
 
     const root = await renderScreen();
     const employeeName = root.findByProps({
-      testID: 'work-items-employee-name',
+      testID: 'agreement-employee-name',
     });
 
     expect(employeeName.props.children).toBe('Raza Employee');
   });
 
-  it('refreshes work items and user profile on pull-to-refresh', async () => {
-    mockUseWorkItems.mockReturnValue({
+  it('refreshes agreements and user profile on pull-to-refresh', async () => {
+    mockUseAgreements.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
 
@@ -259,27 +234,62 @@ describe('WorkItemListScreen', () => {
       await flatList.props.onRefresh();
     });
 
-    expect(mockRefetchWorkItems).toHaveBeenCalledTimes(1);
+    expect(mockRefetchAgreements).toHaveBeenCalledTimes(1);
     expect(mockRefetchUser).toHaveBeenCalledTimes(1);
   });
 
-  it('goes back when back button is pressed', async () => {
-    mockUseWorkItems.mockReturnValue({
+  it('triggers agreements search on text input change with debounce', async () => {
+    jest.useFakeTimers();
+    mockUseAgreements.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,
-      refetch: mockRefetchWorkItems,
+      refetch: mockRefetchAgreements,
       isRefetching: false,
     });
 
     const root = await renderScreen();
+    const searchInput = root.findByProps({ testID: 'agreement-search-input' });
 
-    act(() => {
-      root
-        .findByProps({ testID: 'work-items-back-button' })
-        .props.onPress();
+    await act(async () => {
+      searchInput.props.onChangeText('AGR-123');
     });
 
-    expect(mockGoBack).toHaveBeenCalledTimes(1);
+    // Before timer runs, it shouldn't have queried with the search term yet
+    expect(mockUseAgreements).toHaveBeenLastCalledWith('');
+
+    await act(async () => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(mockUseAgreements).toHaveBeenLastCalledWith('AGR-123');
+    jest.useRealTimers();
+  });
+
+  it('shows search empty state message when searching', async () => {
+    mockUseAgreements.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchAgreements,
+      isRefetching: false,
+    });
+
+    jest.useFakeTimers();
+    let renderer: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<AgreementListScreen />);
+    });
+    const root = renderer!.root;
+    const searchInput = root.findByProps({ testID: 'agreement-search-input' });
+
+    await act(async () => {
+      searchInput.props.onChangeText('AGR-999');
+      jest.advanceTimersByTime(500);
+    });
+
+    const emptyText = root.findByProps({ testID: 'agreement-empty-text' });
+    expect(emptyText.props.children).toBe('No agreements found matching your search.');
+    jest.useRealTimers();
   });
 });

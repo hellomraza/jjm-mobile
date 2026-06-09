@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -10,21 +10,30 @@ import { useWorkItems } from '../hooks/useWorkItems';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
+import { BackButton } from '../components/BackButton';
 
 type WorkItemListNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'WorkItemList'
 >;
 
+type WorkItemListRouteProp = RouteProp<
+  RootStackParamList,
+  'WorkItemList'
+>;
+
 export function WorkItemListScreen() {
   const navigation = useNavigation<WorkItemListNavigationProp>();
+  const route = useRoute<WorkItemListRouteProp>();
+  const { agreementId } = route.params;
+
   const {
     data: workItems,
     isLoading,
     isError,
     refetch: refetchWorkItems,
     isRefetching: isRefetchingWorkItems,
-  } = useWorkItems();
+  } = useWorkItems(agreementId);
   const {
     data: userProfile,
     refetch: refetchUserProfile,
@@ -73,8 +82,9 @@ export function WorkItemListScreen() {
   };
 
   const getContractorName = (
-    item: NonNullable<typeof workItems>[number],
+    item: NonNullable<typeof workItems>['data'][number],
   ): string => {
+    console.log(item)
     const enrichedContractorName = item.contractor?.name;
 
     if (enrichedContractorName) {
@@ -87,7 +97,7 @@ export function WorkItemListScreen() {
   const renderItem = ({
     item,
   }: {
-    item: NonNullable<typeof workItems>[number];
+    item: NonNullable<typeof workItems>['data'][number];
   }) => {
     const safeProgress = Math.max(
       0,
@@ -148,6 +158,10 @@ export function WorkItemListScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <BackButton
+        onPress={() => navigation.goBack()}
+        testID="work-items-back-button"
+      />
       {isMenuOpen ? (
         <Pressable
           style={styles.menuBackdrop}
@@ -191,7 +205,7 @@ export function WorkItemListScreen() {
             ) : null}
           </View>
         </View>
-        <Text style={styles.title}>Work Items</Text>
+        <Text style={styles.title}>Work Items {workItems?.total ? `(${workItems?.total})` : ''}</Text>
       </View>
 
       {isLoading ? (
@@ -210,7 +224,7 @@ export function WorkItemListScreen() {
         <Text testID="work-items-error-text">Failed to load work items.</Text>
       ) : null}
 
-      {!isLoading && !isError && (workItems?.length ?? 0) === 0 ? (
+      {!isLoading && !isError && (workItems?.data?.length ?? 0) === 0 ? (
         <View style={styles.emptyContainer} testID="work-items-empty-container">
           <Text testID="work-items-empty-text" style={styles.emptyText}>
             No work items found. Please contact your contractor to assign work.
@@ -220,7 +234,7 @@ export function WorkItemListScreen() {
 
       {!isLoading && !isError ? (
         <FlatList
-          data={workItems ?? []}
+          data={workItems?.data ?? []}
           keyExtractor={item => item.id}
           renderItem={renderItem}
           numColumns={2}
@@ -240,7 +254,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondaryBackground,
-    padding: spacing.md,
+    paddingTop: spacing.md
   },
   menuBackdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -248,6 +262,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
     zIndex: 12,
   },
   headerRow: {
@@ -313,6 +328,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   gridRow: {
     gap: spacing.sm,

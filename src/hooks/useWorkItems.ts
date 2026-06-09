@@ -3,6 +3,7 @@ import api from '../api/client';
 import type {
   GetWorkItemByIdResponse,
   ListWorkItemsResponse,
+  PaginatedResponse,
   WorkItemResponseDto,
 } from '../api/responseTypes';
 
@@ -12,7 +13,8 @@ export type WorkItem = WorkItemResponseDto;
 // Query key constants
 // ---------------------------------------------------------------------------
 
-export const WORK_ITEMS_QUERY_KEY = ['workItems'] as const;
+export const WORK_ITEMS_QUERY_KEY = (agreementId: string) =>
+  ['workItems', 'agreement', agreementId] as const;
 export const workItemQueryKey = (id: string | number) =>
   ['workItem', id] as const;
 
@@ -20,11 +22,20 @@ export const workItemQueryKey = (id: string | number) =>
 // API functions (exported for testability)
 // ---------------------------------------------------------------------------
 
-export async function fetchWorkItems(): Promise<WorkItem[]> {
-  const response = await api.get<ListWorkItemsResponse>(
-    '/work-items/my-work-items',
+export async function fetchWorkItems(agreementId: string) {
+  if (!agreementId) {
+    return {
+      data: [],
+      total: 0,
+      page: 1,
+      limit: 10,
+      totalPages: 0,
+    } as PaginatedResponse<WorkItem>;
+  }
+  const response = await api.get<PaginatedResponse<WorkItem>>(
+    `/agreements/${agreementId}/work-items`,
   );
-  return response.data.data;
+  return response.data;
 }
 
 export async function fetchWorkItem(id: string | number): Promise<WorkItem> {
@@ -36,12 +47,14 @@ export async function fetchWorkItem(id: string | number): Promise<WorkItem> {
 // Hooks
 // ---------------------------------------------------------------------------
 
-export function useWorkItems() {
+export function useWorkItems(agreementId: string) {
   return useQuery({
-    queryKey: WORK_ITEMS_QUERY_KEY,
-    queryFn: fetchWorkItems,
+    queryKey: WORK_ITEMS_QUERY_KEY(agreementId),
+    queryFn: () => fetchWorkItems(agreementId),
+    enabled: !!agreementId,
   });
 }
+
 
 export function useWorkItem(id: string | number) {
   return useQuery({

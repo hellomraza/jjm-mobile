@@ -111,7 +111,7 @@ describe('LoginScreen', () => {
       email: 'employee@jjm.in',
       password: 'password123',
     });
-    expect(mockReplace).toHaveBeenCalledWith('WorkItemList');
+    expect(mockReplace).toHaveBeenCalledWith('AgreementList');
   });
 
   it('shows loading state while mutation is pending', async () => {

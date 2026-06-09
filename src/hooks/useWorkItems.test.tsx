@@ -61,6 +61,14 @@ const mockWorkItems: WorkItem[] = [
   },
 ];
 
+const mockResponse = {
+  data: mockWorkItems,
+  total: 2,
+  limit: 20,
+  page: 1,
+  totalPages: 1,
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -85,27 +93,25 @@ describe('useWorkItems', () => {
 
   // Query key constants
   it('exports correct query key constants', () => {
-    expect(WORK_ITEMS_QUERY_KEY).toEqual(['workItems']);
+    expect(WORK_ITEMS_QUERY_KEY('agreement-1')).toEqual([
+      'workItems',
+      'agreement',
+      'agreement-1',
+    ]);
     expect(workItemQueryKey(1)).toEqual(['workItem', 1]);
     expect(workItemQueryKey(42)).toEqual(['workItem', 42]);
   });
 
   // fetchWorkItems
-  it('fetchWorkItems calls GET /work-items and returns data', async () => {
+  it('fetchWorkItems calls GET /agreements/:id/work-items and returns data', async () => {
     (api.get as jest.Mock).mockResolvedValue({
-      data: {
-        data: mockWorkItems,
-        total: 2,
-        limit: 20,
-        page: 1,
-        totalPages: 1,
-      },
+      data: mockResponse,
     });
 
-    const result = await fetchWorkItems();
+    const result = await fetchWorkItems('agreement-1');
 
-    expect(api.get).toHaveBeenCalledWith('/work-items');
-    expect(result).toEqual(mockWorkItems);
+    expect(api.get).toHaveBeenCalledWith('/agreements/agreement-1/work-items');
+    expect(result).toEqual(mockResponse);
   });
 
   // fetchWorkItem
@@ -121,26 +127,19 @@ describe('useWorkItems', () => {
   // useWorkItems hook — query key + queryFn integration
   it('useWorkItems query key fetches and caches work items list', async () => {
     (api.get as jest.Mock).mockResolvedValue({
-      data: {
-        data: mockWorkItems,
-        total: 2,
-        limit: 20,
-        page: 1,
-        totalPages: 1,
-      },
+      data: mockResponse,
     });
 
     const queryClient = makeQueryClient();
+    const qKey = WORK_ITEMS_QUERY_KEY('agreement-1');
 
     await queryClient.prefetchQuery({
-      queryKey: WORK_ITEMS_QUERY_KEY,
-      queryFn: fetchWorkItems,
+      queryKey: qKey,
+      queryFn: () => fetchWorkItems('agreement-1'),
     });
 
-    expect(api.get).toHaveBeenCalledWith('/work-items');
-    expect(queryClient.getQueryData(WORK_ITEMS_QUERY_KEY)).toEqual(
-      mockWorkItems,
-    );
+    expect(api.get).toHaveBeenCalledWith('/agreements/agreement-1/work-items');
+    expect(queryClient.getQueryData(qKey)).toEqual(mockResponse);
   });
 
   // useWorkItem hook — query key + queryFn integration

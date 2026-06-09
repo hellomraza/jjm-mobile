@@ -10,11 +10,15 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { UploadPhotoScreen } from '../screens/UploadPhotoScreen';
 import { WorkItemDetailsScreen } from '../screens/WorkItemDetailsScreen';
 import { WorkItemListScreen } from '../screens/WorkItemListScreen';
+import { AgreementListScreen } from '../screens/AgreementListScreen';
 import { colors } from '../theme/colors';
 
 export type RootStackParamList = {
   Login: undefined;
-  WorkItemList: undefined;
+  AgreementList: undefined;
+  WorkItemList: {
+    agreementId: string;
+  };
   WorkItemDetails: {
     workItemId: string;
     title: string;
@@ -80,10 +84,11 @@ export function RootNavigator() {
   return (
     <NavigationContainer>
       <RootStack.Navigator
-        initialRouteName={hasStoredToken ? 'WorkItemList' : 'Login'}
+        initialRouteName={hasStoredToken ? 'AgreementList' : 'Login'}
         screenOptions={{ headerShown: false }}
       >
         <RootStack.Screen name="Login" component={LoginScreen} />
+        <RootStack.Screen name="AgreementList" component={AgreementListScreen} />
         <RootStack.Screen name="WorkItemList" component={WorkItemListScreen} />
         <RootStack.Screen
           name="WorkItemDetails"
