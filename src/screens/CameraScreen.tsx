@@ -66,7 +66,7 @@ export function CameraScreen() {
   const navigation = useNavigation<CameraNavigationProp>();
   const route = useRoute<CameraRouteProp>();
   const insets = useSafeAreaInsets();
-  const { workItemId, componentId, componentName } = route.params;
+  const { workItemId, componentId, componentName, isTpi } = route.params;
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
   const cameraRef = useRef<Camera>(null);
@@ -121,6 +121,7 @@ export function CameraScreen() {
         capturedAt: new Date().toISOString(),
         latitude: gps.latitude,
         longitude: gps.longitude,
+        isTpi,
       });
     } catch {
       setErrorMessage('Failed to capture photo. Please try again.');

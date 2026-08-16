@@ -18,6 +18,7 @@ import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
 import { useWorkItem } from '../hooks/useWorkItems';
+import { useTpiWorkOrder } from '../hooks/useWorkOrderTpi';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
@@ -44,12 +45,12 @@ function getProgressFillStyle(
 }
 
 function getStickyButtonStyle(insetBottom: number): StyleProp<ViewStyle> {
-  const verticalPadding = insetBottom + spacing.md;
+  const verticalPadding = (insetBottom + spacing.md) / 2;
 
   return {
     marginTop: 0,
     paddingBottom: verticalPadding,
-    paddingTop: spacing.md,
+    paddingTop: verticalPadding,
     borderRadius: 0,
   };
 }
@@ -131,28 +132,51 @@ export function WorkItemDetailsScreen() {
   const navigation = useNavigation<WorkItemDetailsNavigationProp>();
   const insets = useSafeAreaInsets();
   const route = useRoute<WorkItemDetailsRouteProp>();
-  const { workItemId, title } = route.params;
+  const { workItemId, title, isTpi } = route.params;
 
-  const {
-    data: workItem,
-    isLoading: isWorkItemLoading,
-    isError: isWorkItemError,
-    refetch: refetchWorkItem,
-    isRefetching: isRefetchingWorkItem,
-  } = useWorkItem(workItemId);
-  const {
-    data: components,
-    isLoading: isComponentsLoading,
-    isError: isComponentsError,
-    refetch: refetchComponents,
-    isRefetching: isRefetchingComponents,
-  } = useComponents(workItemId);
+  const standardWorkItemQuery = useWorkItem(isTpi ? '' : workItemId);
+  const tpiWorkOrderQuery = useTpiWorkOrder(isTpi ? workItemId : '');
+
+  const standardComponentsQuery = useComponents(isTpi ? '' : workItemId);
+
+  const workItem: any = isTpi
+    ? tpiWorkOrderQuery.data
+    : standardWorkItemQuery.data;
+
+  const components: any = isTpi
+    ? tpiWorkOrderQuery.data?.components
+    : standardComponentsQuery.data;
+
+  const isWorkItemLoading = isTpi
+    ? tpiWorkOrderQuery.isLoading
+    : standardWorkItemQuery.isLoading;
+
+  const isWorkItemError = isTpi
+    ? tpiWorkOrderQuery.isError
+    : standardWorkItemQuery.isError;
+
+  const isComponentsLoading = isTpi
+    ? tpiWorkOrderQuery.isLoading
+    : standardComponentsQuery.isLoading;
+
+  const isComponentsError = isTpi
+    ? tpiWorkOrderQuery.isError
+    : standardComponentsQuery.isError;
 
   const handleRefresh = () => {
-    Promise.allSettled([refetchWorkItem(), refetchComponents()]);
+    if (isTpi) {
+      tpiWorkOrderQuery.refetch();
+    } else {
+      Promise.allSettled([
+        standardWorkItemQuery.refetch(),
+        standardComponentsQuery.refetch(),
+      ]);
+    }
   };
 
-  const isRefreshing = isRefetchingWorkItem || isRefetchingComponents;
+  const isRefreshing = isTpi
+    ? tpiWorkOrderQuery.isRefetching
+    : standardWorkItemQuery.isRefetching || standardComponentsQuery.isRefetching;
 
   const componentCount = components?.length ?? 0;
   const componentStatusCounts = (components ?? []).reduce<
@@ -347,8 +371,9 @@ export function WorkItemDetailsScreen() {
           onPress={() =>
             navigation.navigate('ComponentList', {
               workItemId,
-              title: workItem.title || title,
-              work_code: workItem.work_code,
+              title: workItem?.title || title,
+              work_code: workItem?.work_code,
+              ...(isTpi ? { isTpi: true } : {}),
             })
           }
           customStyles={viewComponentsButtonStyle}

@@ -20,6 +20,9 @@ jest.mock('@react-navigation/native', () => ({
 
 jest.mock('../hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
+  getPersistedLoginMode: jest.fn().mockResolvedValue('svs'),
+  persistLoginMode: jest.fn().mockResolvedValue(undefined),
+  removePersistedLoginMode: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe('LoginScreen', () => {

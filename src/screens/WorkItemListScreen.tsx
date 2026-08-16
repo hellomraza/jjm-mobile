@@ -3,10 +3,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { WorkItemStatus } from '../api/responseTypes';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../hooks/useUser';
 import { useWorkItems } from '../hooks/useWorkItems';
+import { useTpiWorkOrders } from '../hooks/useWorkOrderTpi';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
@@ -25,30 +25,53 @@ type WorkItemListRouteProp = RouteProp<
 export function WorkItemListScreen() {
   const navigation = useNavigation<WorkItemListNavigationProp>();
   const route = useRoute<WorkItemListRouteProp>();
-  const { agreementId } = route.params;
+  const { agreementId, isTpi: isTpiRoute } = route.params;
 
-  const {
-    data: workItems,
-    isLoading,
-    isError,
-    refetch: refetchWorkItems,
-    isRefetching: isRefetchingWorkItems,
-  } = useWorkItems(agreementId);
   const {
     data: userProfile,
     refetch: refetchUserProfile,
     isRefetching: isRefetchingUserProfile,
   } = useUser();
+
+  const isTpi = isTpiRoute || userProfile?.role === 'TPI';
+
+  const standardWorkItemsQuery = useWorkItems(agreementId);
+  const tpiWorkOrdersQuery = useTpiWorkOrders(agreementId);
+
+  const workItems = isTpi
+    ? { data: tpiWorkOrdersQuery.data || [], total: (tpiWorkOrdersQuery.data || []).length }
+    : standardWorkItemsQuery.data;
+
+  const isLoading = isTpi
+    ? tpiWorkOrdersQuery.isLoading
+    : standardWorkItemsQuery.isLoading;
+
+  const isError = isTpi
+    ? tpiWorkOrdersQuery.isError
+    : standardWorkItemsQuery.isError;
+
+  const isRefetchingWorkItems = isTpi
+    ? tpiWorkOrdersQuery.isRefetching
+    : standardWorkItemsQuery.isRefetching;
+
   const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const employeeName = userProfile?.name || 'Employee Name';
+  const employeeName = userProfile?.name || 'User';
 
   const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
 
   const handleRefresh = () => {
-    Promise.allSettled([refetchWorkItems(), refetchUserProfile()]).then(
-      () => undefined,
-    );
+    if (isTpi) {
+      Promise.allSettled([
+        tpiWorkOrdersQuery.refetch(),
+        refetchUserProfile(),
+      ]).then(() => undefined);
+    } else {
+      Promise.allSettled([
+        standardWorkItemsQuery.refetch(),
+        refetchUserProfile(),
+      ]).then(() => undefined);
+    }
   };
 
   const handleLogout = async () => {
@@ -113,6 +136,7 @@ export function WorkItemListScreen() {
           navigation.navigate('WorkItemDetails', {
             workItemId: item.id,
             title: item.title,
+            ...(isTpi ? { isTpi: true } : {}),
           })
         }
       >

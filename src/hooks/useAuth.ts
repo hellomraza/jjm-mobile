@@ -48,6 +48,25 @@ export async function removePersistedAuthUser(): Promise<void> {
   await AsyncStorage.removeItem(AUTH_USER_KEY);
 }
 
+export const LOGIN_MODE_KEY = 'login_mode';
+export type LoginMode = 'svs' | 'tpi';
+
+export async function persistLoginMode(mode: LoginMode): Promise<void> {
+  await AsyncStorage.setItem(LOGIN_MODE_KEY, mode);
+}
+
+export async function getPersistedLoginMode(): Promise<LoginMode | null> {
+  const mode = await AsyncStorage.getItem(LOGIN_MODE_KEY);
+  if (mode === 'svs' || mode === 'tpi') {
+    return mode;
+  }
+  return null;
+}
+
+export async function removePersistedLoginMode(): Promise<void> {
+  await AsyncStorage.removeItem(LOGIN_MODE_KEY);
+}
+
 export function useAuth() {
   const queryClient = useQueryClient();
 

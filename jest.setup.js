@@ -10,6 +10,13 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   clear: jest.fn(),
 }));
 
+jest.mock('./src/hooks/useAuth', () => ({
+  ...jest.requireActual('./src/hooks/useAuth'),
+  getPersistedLoginMode: jest.fn().mockResolvedValue('svs'),
+  persistLoginMode: jest.fn().mockResolvedValue(undefined),
+  removePersistedLoginMode: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('react-native-vision-camera', () => {
   const ReactModule = require('react');
   const { View } = require('react-native');
@@ -39,6 +46,14 @@ jest.mock('react-native-image-resizer', () => ({
   createResizedImage: jest.fn(),
 }));
 
-
-
-
+jest.mock('./src/hooks/useWorkOrderTpi', () => ({
+  useTpiAgreements: jest.fn(() => ({ data: [], isLoading: false, isError: false, refetch: jest.fn() })),
+  useTpiWorkOrders: jest.fn(() => ({ data: [], isLoading: false, isError: false, refetch: jest.fn() })),
+  useTpiWorkOrder: jest.fn(() => ({ data: null, isLoading: false, isError: false, refetch: jest.fn() })),
+  useUploadTpiPhotoMutation: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+  })),
+}));

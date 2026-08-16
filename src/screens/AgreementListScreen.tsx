@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../hooks/useUser';
 import { useAgreements } from '../hooks/useAgreements';
+import { useTpiAgreements } from '../hooks/useWorkOrderTpi';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
@@ -31,27 +32,50 @@ export function AgreementListScreen() {
   }, [searchText]);
 
   const {
-    data: agreements,
-    isLoading,
-    isError,
-    refetch: refetchAgreements,
-    isRefetching: isRefetchingAgreements,
-  } = useAgreements(debouncedSearch);
-  const {
     data: userProfile,
     refetch: refetchUserProfile,
     isRefetching: isRefetchingUserProfile,
   } = useUser();
+
+  const isTpiUser = userProfile?.role === 'TPI';
+
+  const standardAgreementsQuery = useAgreements(debouncedSearch);
+  const tpiAgreementsQuery = useTpiAgreements();
+
+  const agreementsData = isTpiUser
+    ? { data: tpiAgreementsQuery.data || [] }
+    : standardAgreementsQuery.data;
+
+  const isLoading = isTpiUser
+    ? tpiAgreementsQuery.isLoading
+    : standardAgreementsQuery.isLoading;
+
+  const isError = isTpiUser
+    ? tpiAgreementsQuery.isError
+    : standardAgreementsQuery.isError;
+
+  const isRefetchingAgreements = isTpiUser
+    ? tpiAgreementsQuery.isRefetching
+    : standardAgreementsQuery.isRefetching;
+
   const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const employeeName = userProfile?.name || 'Employee Name';
+  const employeeName = userProfile?.name || 'User';
 
   const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
 
   const handleRefresh = () => {
-    Promise.allSettled([refetchAgreements(), refetchUserProfile()]).then(
-      () => undefined,
-    );
+    if (isTpiUser) {
+      Promise.allSettled([
+        tpiAgreementsQuery.refetch(),
+        refetchUserProfile(),
+      ]).then(() => undefined);
+    } else {
+      Promise.allSettled([
+        standardAgreementsQuery.refetch(),
+        refetchUserProfile(),
+      ]).then(() => undefined);
+    }
   };
 
   const handleLogout = async () => {
@@ -63,7 +87,7 @@ export function AgreementListScreen() {
   const renderItem = ({
     item,
   }: {
-    item: NonNullable<typeof agreements>['data'][number];
+    item: any;
   }) => {
     return (
       <Pressable
@@ -72,6 +96,7 @@ export function AgreementListScreen() {
         onPress={() =>
           navigation.navigate('WorkItemList', {
             agreementId: item.id,
+            ...(isTpiUser ? { isTpi: true } : {}),
           })
         }
       >
@@ -79,8 +104,10 @@ export function AgreementListScreen() {
           Agreement No: {item.agreementno}
         </Text>
         <View style={styles.detailsRow}>
-          <Text style={styles.detailText}>Year: {item.agreementyear}</Text>
-          <Text style={styles.detailText}>Contractor ID: {item.contractor?.name}</Text>
+          <Text style={styles.detailText}>Year: {item.agreementyear || 'N/A'}</Text>
+          <Text style={styles.detailText}>
+            {isTpiUser ? 'TPI Assigned' : `Contractor: ${item.contractor?.name || 'N/A'}`}
+          </Text>
         </View>
       </Pressable>
     );
@@ -138,7 +165,9 @@ export function AgreementListScreen() {
             ) : null}
           </View>
         </View>
-        <Text style={styles.title}>Agreements {agreements?.total ? `(${agreements?.total})` : ''}</Text>
+        <Text style={styles.title}>
+          Agreements {agreementsData?.data ? `(${agreementsData.data.length})` : ''}
+        </Text>
         <TextInput
           style={styles.searchInput}
           value={searchText}
@@ -162,13 +191,13 @@ export function AgreementListScreen() {
 
       {!isLoading ? (
         <FlatList
-          data={agreements?.data ?? []}
+          data={agreementsData?.data ?? []}
           keyExtractor={item => item.id}
           renderItem={renderItem}
           onRefresh={handleRefresh}
           refreshing={isRefetchingAgreements || isRefetchingUserProfile}
           contentContainerStyle={
-            isError || (agreements?.data.length ?? 0) === 0
+            isError || (agreementsData?.data.length ?? 0) === 0
               ? [styles.listContent, { flexGrow: 1 }]
               : styles.listContent
           }
@@ -185,6 +214,8 @@ export function AgreementListScreen() {
                 <Text testID="agreement-empty-text" style={styles.emptyText}>
                   {searchText.trim() !== ''
                     ? 'No agreements found matching your search.'
+                    : isTpiUser
+                    ? 'No TPI work orders assigned to you yet.'
                     : 'No agreements found. Please contact your contractor to assign agreements.'}
                 </Text>
               </View>

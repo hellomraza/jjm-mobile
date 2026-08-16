@@ -1,11 +1,12 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Formik } from 'formik';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FormTextInput } from '../components/FormTextInput';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { useAuth } from '../hooks/useAuth';
+import { getPersistedLoginMode, useAuth } from '../hooks/useAuth';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
@@ -20,12 +21,46 @@ type LoginNavigationProp = NativeStackNavigationProp<
 export function LoginScreen() {
   const navigation = useNavigation<LoginNavigationProp>();
   const { loginMutation } = useAuth();
+  const [loginMode, setLoginMode] = useState<'svs' | 'tpi'>('svs');
+
+  useEffect(() => {
+    getPersistedLoginMode().then(mode => {
+      if (mode) setLoginMode(mode);
+    });
+  }, []);
+
+  const isTpi = loginMode === 'tpi';
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.card}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Login</Text>
+          <View>
+            <Text style={styles.title}>Login</Text>
+            <View style={styles.portalRow}>
+              <View
+                style={[
+                  styles.portalBadge,
+                  isTpi ? styles.tpiPortalBadge : styles.svsPortalBadge,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.portalBadgeText,
+                    isTpi ? styles.tpiPortalBadgeText : styles.svsPortalBadgeText,
+                  ]}
+                >
+                  {isTpi ? 'TPI Portal' : 'SVS Portal'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('LoginChoice')}
+                style={styles.switchButton}
+              >
+                <Text style={styles.switchButtonText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           <View style={styles.logoContainer}>
             <Image source={require('../images/logo.png')} style={styles.logo} />
             <Text style={styles.missionText}>Jal Jeevan Mission</Text>
@@ -162,7 +197,45 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.xxl,
     fontWeight: fontWeight.bold,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
+  },
+  portalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: 2,
+  },
+  portalBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  svsPortalBadge: {
+    backgroundColor: '#EBF4FB',
+  },
+  tpiPortalBadge: {
+    backgroundColor: '#EDE9FE',
+  },
+  portalBadgeText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+  },
+  svsPortalBadgeText: {
+    color: '#136FB6',
+  },
+  tpiPortalBadgeText: {
+    color: '#7C3AED',
+  },
+  switchButton: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+  },
+  switchButtonText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: fontWeight.semibold,
+    textDecorationLine: 'underline',
   },
   buttonContainer: {
     alignSelf: 'flex-start',

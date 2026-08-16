@@ -4,8 +4,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { ACCESS_TOKEN_KEY } from '../api/client';
+import { getPersistedLoginMode } from '../hooks/useAuth';
 import { CameraScreen } from '../screens/CameraScreen';
 import { ComponentListScreen } from '../screens/ComponentListScreen';
+import { LoginChoiceScreen } from '../screens/LoginChoiceScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { UploadPhotoScreen } from '../screens/UploadPhotoScreen';
 import { WorkItemDetailsScreen } from '../screens/WorkItemDetailsScreen';
@@ -14,19 +16,23 @@ import { AgreementListScreen } from '../screens/AgreementListScreen';
 import { colors } from '../theme/colors';
 
 export type RootStackParamList = {
+  LoginChoice: undefined;
   Login: undefined;
   AgreementList: undefined;
   WorkItemList: {
     agreementId: string;
+    isTpi?: boolean;
   };
   WorkItemDetails: {
     workItemId: string;
     title: string;
+    isTpi?: boolean;
   };
   ComponentList: {
     workItemId: string;
     title: string;
     work_code?: string;
+    isTpi?: boolean;
   };
   UploadPhoto: {
     workItemId: string;
@@ -36,11 +42,13 @@ export type RootStackParamList = {
     capturedAt?: string;
     latitude?: number;
     longitude?: number;
+    isTpi?: boolean;
   };
   Camera: {
     workItemId: string;
     componentId: string;
     componentName: string;
+    isTpi?: boolean;
   };
 };
 
@@ -48,7 +56,8 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [hasStoredToken, setHasStoredToken] = useState(false);
+  const [initialRoute, setInitialRoute] =
+    useState<keyof RootStackParamList>('LoginChoice');
 
   useEffect(() => {
     let isMounted = true;
@@ -56,8 +65,16 @@ export function RootNavigator() {
     const loadAuthState = async () => {
       try {
         const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+        const mode = await getPersistedLoginMode();
+
         if (isMounted) {
-          setHasStoredToken(Boolean(token));
+          if (token) {
+            setInitialRoute('AgreementList');
+          } else if (mode) {
+            setInitialRoute('Login');
+          } else {
+            setInitialRoute('LoginChoice');
+          }
         }
       } finally {
         if (isMounted) {
@@ -84,9 +101,10 @@ export function RootNavigator() {
   return (
     <NavigationContainer>
       <RootStack.Navigator
-        initialRouteName={hasStoredToken ? 'AgreementList' : 'Login'}
+        initialRouteName={initialRoute}
         screenOptions={{ headerShown: false }}
       >
+        <RootStack.Screen name="LoginChoice" component={LoginChoiceScreen} />
         <RootStack.Screen name="Login" component={LoginScreen} />
         <RootStack.Screen name="AgreementList" component={AgreementListScreen} />
         <RootStack.Screen name="WorkItemList" component={WorkItemListScreen} />

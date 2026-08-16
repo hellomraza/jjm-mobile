@@ -240,10 +240,6 @@ describe('WorkItemDetailsScreen', () => {
 
     expect(mockRefetchWorkItem).toHaveBeenCalledTimes(1);
     expect(mockRefetchComponents).toHaveBeenCalledTimes(1);
-    expect(mockRefetchDistrict).toHaveBeenCalledTimes(1);
-    expect(mockRefetchBlock).toHaveBeenCalledTimes(1);
-    expect(mockRefetchPanchayat).toHaveBeenCalledTimes(1);
-    expect(mockRefetchUserById).toHaveBeenCalledTimes(1);
   });
 
   it('clamps progress fill style width between 0 and 100 percent', () => {

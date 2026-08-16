@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { useComponents } from '../hooks/useComponents';
+import { useTpiWorkOrder } from '../hooks/useWorkOrderTpi';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
@@ -23,20 +24,28 @@ type ComponentListNavigationProp = NativeStackNavigationProp<
 
 type StatusVariant = 'approved' | 'pending' | 'rejected' | 'default';
 
-function formatProgress(progress: string, quantity?: string) {
-  const progressNum = parseFloat(progress);
-  const quantityNum = quantity ? parseFloat(quantity) : undefined;
+function formatProgress(progress: string | number, quantity?: string | number) {
+  const progressNum = typeof progress === 'number' ? progress : parseFloat(progress || '0');
+  const quantityNum = quantity
+    ? typeof quantity === 'number'
+      ? quantity
+      : parseFloat(quantity)
+    : undefined;
 
   if (typeof quantityNum === 'number' && quantityNum > 0) {
     return `${progressNum} / ${quantityNum}`;
   }
 
-  return progress;
+  return `${progressNum}`;
 }
 
-function getProgressPercent(progress: string, quantity?: string) {
-  const progressNum = parseFloat(progress);
-  const quantityNum = quantity ? parseFloat(quantity) : undefined;
+function getProgressPercent(progress: string | number, quantity?: string | number) {
+  const progressNum = typeof progress === 'number' ? progress : parseFloat(progress || '0');
+  const quantityNum = quantity
+    ? typeof quantity === 'number'
+      ? quantity
+      : parseFloat(quantity)
+    : undefined;
 
   if (typeof quantityNum === 'number' && quantityNum > 0) {
     return Math.max(0, Math.min(100, (progressNum / quantityNum) * 100));
@@ -46,7 +55,7 @@ function getProgressPercent(progress: string, quantity?: string) {
 }
 
 function getStatusVariant(status: string): StatusVariant {
-  const normalizedStatus = status.toLowerCase().replaceAll('_', ' ');
+  const normalizedStatus = (status || '').toLowerCase().replaceAll('_', ' ');
 
   if (
     normalizedStatus.includes('completed') ||
@@ -74,7 +83,7 @@ function getStatusVariant(status: string): StatusVariant {
 }
 
 function getStatusLabel(status: string): string {
-  return status
+  return (status || 'pending')
     .toLowerCase()
     .replaceAll('_', ' ')
     .replace(/^./, char => char.toUpperCase());
@@ -83,26 +92,42 @@ function getStatusLabel(status: string): string {
 export function ComponentListScreen() {
   const navigation = useNavigation<ComponentListNavigationProp>();
   const route = useRoute<ComponentListRouteProp>();
-  const { workItemId, title, work_code } = route.params;
-  const {
-    data: components,
-    isLoading,
-    isError,
-    refetch,
-    isRefetching,
-  } = useComponents(workItemId);
+  const { workItemId, title, work_code, isTpi } = route.params;
+
+  const standardComponentsQuery = useComponents(isTpi ? '' : workItemId);
+  const tpiWorkOrderQuery = useTpiWorkOrder(isTpi ? workItemId : '');
+
+  const components = isTpi
+    ? tpiWorkOrderQuery.data?.components || []
+    : standardComponentsQuery.data || [];
+
+  const isLoading = isTpi
+    ? tpiWorkOrderQuery.isLoading
+    : standardComponentsQuery.isLoading;
+
+  const isError = isTpi
+    ? tpiWorkOrderQuery.isError
+    : standardComponentsQuery.isError;
+
+  const refetch = isTpi
+    ? () => tpiWorkOrderQuery.refetch()
+    : () => standardComponentsQuery.refetch();
+
+  const isRefetching = isTpi
+    ? tpiWorkOrderQuery.isRefetching
+    : standardComponentsQuery.isRefetching;
 
   const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
 
-  const orderedComponents = [...(components ?? [])].sort((a, b) => {
-    const orderA = a.component?.order_number ?? Number.MAX_SAFE_INTEGER;
-    const orderB = b.component?.order_number ?? Number.MAX_SAFE_INTEGER;
+  const orderedComponents = [...(components ?? [])].sort((a: any, b: any) => {
+    const orderA = a.order_number ?? a.component?.order_number ?? Number.MAX_SAFE_INTEGER;
+    const orderB = b.order_number ?? b.component?.order_number ?? Number.MAX_SAFE_INTEGER;
 
     return orderA - orderB;
   });
 
   const firstIncompleteComponent = orderedComponents.find(
-    component => component.status !== 'APPROVED',
+    (component: any) => component.status !== 'APPROVED',
   );
 
   const activeComponentId = firstIncompleteComponent?.id;
@@ -110,14 +135,17 @@ export function ComponentListScreen() {
   const renderItem = ({
     item,
   }: {
-    item: NonNullable<typeof components>[number];
+    item: any;
   }) => {
     const progressPercent = getProgressPercent(item.progress, item.quantity);
     const statusVariant = getStatusVariant(item.status);
     const isOutOfOrderLocked =
+      !isTpi &&
       !!activeComponentId &&
       item.id !== activeComponentId &&
       item.status !== 'APPROVED';
+
+    const displayName = item.name || item.component?.name || 'Inspection Milestone';
 
     return (
       <Pressable
@@ -135,13 +163,14 @@ export function ComponentListScreen() {
           navigation.navigate('UploadPhoto', {
             workItemId,
             componentId: item.id,
-            componentName: item.component?.name ?? 'Component',
+            componentName: displayName,
+            ...(isTpi ? { isTpi: true } : {}),
           });
         }}
       >
         <View style={styles.rowHeader}>
           <Text numberOfLines={2} style={styles.componentName}>
-            {item.component?.name ?? 'Unnamed Component'}
+            {displayName}
           </Text>
           <View
             style={[

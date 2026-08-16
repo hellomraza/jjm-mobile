@@ -19,9 +19,11 @@ import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
 import {
+  useComponentPhotos,
   useComponentPhotoStatuses,
   useUploadPhotoMutation,
 } from '../hooks/usePhotos';
+import { useUploadTpiPhotoMutation } from '../hooks/useWorkOrderTpi';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { uploadToCloudinary } from '../services/cloudinaryUpload';
 import { colors } from '../theme/colors';
@@ -121,6 +123,7 @@ function getApprovedPhotoStatuses(
       photoStatus.status === 'APPROVED' && !!photoStatus.photo?.image_url,
   );
 }
+
 export function UploadPhotoScreen() {
   const navigation = useNavigation<UploadPhotoNavigationProp>();
   const route = useRoute<UploadPhotoRouteProp>();
@@ -132,6 +135,7 @@ export function UploadPhotoScreen() {
     capturedAt,
     latitude,
     longitude,
+    isTpi,
   } = route.params;
 
   const [approvedPhotoViewIndex, setApprovedPhotoViewIndex] = useState(0);
@@ -148,10 +152,13 @@ export function UploadPhotoScreen() {
   const [cloudinaryProgress, setCloudinaryProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const { data: components } = useComponents(workItemId);
+  const { data: components } = useComponents(isTpi ? '' : workItemId);
+  const { data: photos } = useComponentPhotos(isTpi ? '' : componentId);
   const { data: photoStatuses, isLoading: isPhotoStatusesLoading } =
-    useComponentPhotoStatuses(componentId);
-  const mutation = useUploadPhotoMutation(workItemId, componentId);
+    useComponentPhotoStatuses(isTpi ? '' : componentId);
+  const svsMutation = useUploadPhotoMutation(isTpi ? '' : workItemId, isTpi ? '' : componentId);
+  const tpiMutation = useUploadTpiPhotoMutation();
+  const mutation = isTpi ? tpiMutation : svsMutation;
 
   const orderedComponents = [...(components ?? [])].sort((a, b) => {
     const orderA = a.component?.order_number ?? Number.MAX_SAFE_INTEGER;
@@ -177,8 +184,15 @@ export function UploadPhotoScreen() {
       .length ?? 0;
   const approvedPhotoStatuses = getApprovedPhotoStatuses(photoStatuses);
 
+  const sortedStatuses = sortPhotoStatuses(photoStatuses);
+  const highestRankedStatusPhoto = sortedStatuses.find(
+    item => !!item.photo?.image_url,
+  )?.photo?.image_url;
+
   const previewPhotoUrl = isCurrentComponentApproved
     ? approvedPhotoStatuses[approvedPhotoViewIndex]?.photo?.image_url
+    : photoStatuses && photoStatuses.length > 0 && highestRankedStatusPhoto
+    ? highestRankedStatusPhoto
     : capturedPhotoPath;
 
   useEffect(() => {
@@ -240,7 +254,7 @@ export function UploadPhotoScreen() {
   const isLocked = !isCurrentComponentAllowed;
 
   const navigateToCamera = () => {
-    if (!isCurrentComponentAllowed) {
+    if (!isTpi && !isCurrentComponentAllowed) {
       Alert.alert(
         'Component Locked',
         'Please complete the previous component before adding progress here.',
@@ -252,35 +266,38 @@ export function UploadPhotoScreen() {
       workItemId,
       componentId,
       componentName,
+      isTpi,
     });
   };
 
   const handleSubmit = async () => {
     const progressValue = parseFloat(progress);
 
-    if (Number(currentComponent?.quantity) < Number(progress)) {
-      Alert.alert(
-        'Invalid Progress',
-        `Progress value cannot exceed component quantity of ${currentComponent?.quantity}.`,
-      );
-      return;
-    }
+    if (!isTpi) {
+      if (Number(currentComponent?.quantity) < Number(progress)) {
+        Alert.alert(
+          'Invalid Progress',
+          `Progress value cannot exceed component quantity of ${currentComponent?.quantity}.`,
+        );
+        return;
+      }
 
-    if (!isCurrentComponentAllowed) {
-      Alert.alert(
-        'Component Locked',
-        'Please complete the previous component before submitting this one.',
-      );
-      return;
+      if (!isCurrentComponentAllowed) {
+        Alert.alert(
+          'Component Locked',
+          'Please complete the previous component before submitting this one.',
+        );
+        return;
+      }
+
+      if (isNaN(progressValue) || progressValue < 0) {
+        Alert.alert('Invalid Progress', 'Please enter a valid progress value.');
+        return;
+      }
     }
 
     if (!capturedPhotoPath) {
       Alert.alert('No Photo', 'Please capture a photo before submitting.');
-      return;
-    }
-
-    if (isNaN(progressValue) || progressValue < 0) {
-      Alert.alert('Invalid Progress', 'Please enter a valid progress value.');
       return;
     }
 
@@ -306,28 +323,52 @@ export function UploadPhotoScreen() {
       );
 
       setUploadStage('submitting');
-      mutation.mutate(
-        {
-          photoUrl,
-          work_item_id: workItemId,
-          component_id: componentId,
-          progress: progressValue,
-          latitude: resolvedLatitude ?? 0,
-          longitude: resolvedLongitude ?? 0,
-          timestamp: capturedAt ?? new Date().toISOString(),
-        },
-        {
-          onError: () => {
-            setUploadError(
-              'Failed to submit photo metadata. Please try again.',
-            );
-            setUploadStage('idle');
+      if (isTpi) {
+        tpiMutation.mutate(
+          {
+            workOrderTpiId: workItemId,
+            componentId,
+            imageUrl: photoUrl,
+            latitude: resolvedLatitude ?? 0,
+            longitude: resolvedLongitude ?? 0,
+            timestamp: capturedAt ?? new Date().toISOString(),
           },
-          onSuccess: () => {
-            setUploadStage('idle');
+          {
+            onError: () => {
+              setUploadError(
+                'Failed to submit TPI inspection photo. Please try again.',
+              );
+              setUploadStage('idle');
+            },
+            onSuccess: () => {
+              setUploadStage('idle');
+            },
           },
-        },
-      );
+        );
+      } else {
+        svsMutation.mutate(
+          {
+            photoUrl,
+            work_item_id: workItemId,
+            component_id: componentId,
+            progress: progressValue,
+            latitude: resolvedLatitude ?? 0,
+            longitude: resolvedLongitude ?? 0,
+            timestamp: capturedAt ?? new Date().toISOString(),
+          },
+          {
+            onError: () => {
+              setUploadError(
+                'Failed to submit photo metadata. Please try again.',
+              );
+              setUploadStage('idle');
+            },
+            onSuccess: () => {
+              setUploadStage('idle');
+            },
+          },
+        );
+      }
     } catch (error) {
       setUploadStage('idle');
       setUploadError(
@@ -509,6 +550,38 @@ export function UploadPhotoScreen() {
                     </View>
                   </TouchableOpacity>
                 ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {photos && photos.length > 0 ? (
+            <View
+              style={styles.approvedPhotosSection}
+              testID="upload-photo-gallery-section"
+            >
+              <Text style={styles.approvedPhotosTitle}>Photo gallery</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.approvedPhotosList}
+                testID="upload-photo-gallery-list"
+              >
+                {[...photos]
+                  .sort((a, b) => {
+                    const timeA = new Date(a.created_at ?? 0).getTime();
+                    const timeB = new Date(b.created_at ?? 0).getTime();
+                    return timeB - timeA;
+                  })
+                  .map((p, index) => (
+                    <View key={p.id} style={styles.approvedPhotoCard}>
+                      <Image
+                        source={{ uri: p.image_url }}
+                        style={styles.approvedPhotoImage}
+                        resizeMode="cover"
+                        testID={`upload-photo-gallery-${index}`}
+                      />
+                    </View>
+                  ))}
               </ScrollView>
             </View>
           ) : null}
