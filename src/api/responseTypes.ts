@@ -1,4 +1,4 @@
-export type UserRole = 'HO' | 'DO' | 'CO' | 'EM';
+export type UserRole = 'HO' | 'DO' | 'CO' | 'EM' | 'TPI';
 
 export type WorkItemStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 

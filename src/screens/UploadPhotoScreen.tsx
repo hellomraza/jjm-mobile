@@ -420,42 +420,54 @@ export function UploadPhotoScreen() {
 
         <View style={styles.headerCard}>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.title}>Upload Photo</Text>
+            <Text style={styles.title}>
+              {isTpi ? 'TPI Inspection Photo' : 'Upload Photo'}
+            </Text>
             <View
               style={[
                 styles.statusChip,
-                isLocked ? styles.statusChipLocked : styles.statusChipReady,
+                isTpi
+                  ? styles.statusChipReady
+                  : isLocked
+                  ? styles.statusChipLocked
+                  : styles.statusChipReady,
               ]}
             >
               <Text
                 style={[
                   styles.statusChipText,
-                  isLocked
+                  isTpi
+                    ? styles.statusChipTextReady
+                    : isLocked
                     ? styles.statusChipTextLocked
                     : styles.statusChipTextReady,
                 ]}
               >
-                {isLocked ? 'Locked' : 'Ready'}
+                {isTpi ? 'TPI' : isLocked ? 'Locked' : 'Ready'}
               </Text>
             </View>
           </View>
           <Text style={styles.subtitle}>{componentName}</Text>
-          <View
-            style={styles.progressTrack}
-            testID={`component-progress-track-${componentId}`}
-          >
-            <View
-              style={[styles.progressFill, { width: `${progressPercent}%` }]}
-              testID={`component-progress-fill-${componentId}`}
-            />
-          </View>
-          <Text style={styles.meta}>
-            Progress:{' '}
-            {formatProgress(
-              currentComponent?.progress,
-              currentComponent?.quantity,
-            )}
-          </Text>
+          {!isTpi && (
+            <>
+              <View
+                style={styles.progressTrack}
+                testID={`component-progress-track-${componentId}`}
+              >
+                <View
+                  style={[styles.progressFill, { width: `${progressPercent}%` }]}
+                  testID={`component-progress-fill-${componentId}`}
+                />
+              </View>
+              <Text style={styles.meta}>
+                Progress:{' '}
+                {formatProgress(
+                  currentComponent?.progress,
+                  currentComponent?.quantity,
+                )}
+              </Text>
+            </>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -628,7 +640,7 @@ export function UploadPhotoScreen() {
             </Text>
           ) : null}
 
-          {!isLocked ? (
+          {!isLocked && !isTpi ? (
             <>
               <Text style={styles.label}>Progress Value</Text>
               <TextInput

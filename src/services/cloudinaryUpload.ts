@@ -25,29 +25,39 @@ export async function uploadToCloudinary(
   formData.append('file', file as unknown as Blob);
   formData.append('upload_preset', cloudinaryConfig.uploadPreset);
 
-  const response = await axios.post<CloudinaryUploadResponse>(
-    endpoint,
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      onUploadProgress: event => {
-        if (!options.onProgress || !event.total) {
-          return;
-        }
+  try {
+    const response = await axios.post<CloudinaryUploadResponse>(
+      endpoint,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: event => {
+          if (!options.onProgress || !event.total) {
+            return;
+          }
 
-        const progressPercent = Math.round((event.loaded / event.total) * 100);
-        options.onProgress(progressPercent);
+          const progressPercent = Math.round(
+            (event.loaded / event.total) * 100,
+          );
+          options.onProgress(progressPercent);
+        },
       },
-    },
-  );
-
-  if (!response.data?.secure_url) {
-    throw new Error(
-      'Cloudinary upload failed: secure_url is missing in response.',
     );
-  }
 
-  return response.data.secure_url;
+    console.log(response);
+
+    if (!response.data?.secure_url) {
+      throw new Error(
+        'Cloudinary upload failed: secure_url is missing in response.',
+      );
+    }
+
+    return response.data.secure_url;
+  } catch (error) {
+    console.log(error, JSON.stringify(error), error.response.data);
+
+    throw error;
+  }
 }

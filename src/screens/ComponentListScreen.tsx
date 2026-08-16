@@ -210,30 +210,38 @@ export function ComponentListScreen() {
           </Text>
         ) : null}
 
-        <View style={styles.progressHeader}>
-          <Text style={styles.metaLabel}>Overall Progress</Text>
-          <Text style={styles.progressPercentText}>
-            {Math.round(progressPercent)}%
+        {!isTpi ? (
+          <>
+            <View style={styles.progressHeader}>
+              <Text style={styles.metaLabel}>Overall Progress</Text>
+              <Text style={styles.progressPercentText}>
+                {Math.round(progressPercent)}%
+              </Text>
+            </View>
+
+            <View
+              style={styles.progressTrack}
+              testID={`component-progress-track-${item.id}`}
+            >
+              <View
+                style={[styles.progressFill, { width: `${progressPercent}%` }]}
+                testID={`component-progress-fill-${item.id}`}
+              />
+            </View>
+
+            <Text style={styles.meta}>
+              Progress: {formatProgress(item.progress, item.quantity)}
+            </Text>
+
+            {typeof item.quantity === 'number' ? (
+              <Text style={styles.meta}>Quantity: {item.quantity}</Text>
+            ) : null}
+          </>
+        ) : (
+          <Text style={styles.meta}>
+            Milestone #{item.order_number ?? item.component?.order_number ?? ''} ({item.unit || item.component?.unit || 'Inspection'})
           </Text>
-        </View>
-
-        <View
-          style={styles.progressTrack}
-          testID={`component-progress-track-${item.id}`}
-        >
-          <View
-            style={[styles.progressFill, { width: `${progressPercent}%` }]}
-            testID={`component-progress-fill-${item.id}`}
-          />
-        </View>
-
-        <Text style={styles.meta}>
-          Progress: {formatProgress(item.progress, item.quantity)}
-        </Text>
-
-        {typeof item.quantity === 'number' ? (
-          <Text style={styles.meta}>Quantity: {item.quantity}</Text>
-        ) : null}
+        )}
       </Pressable>
     );
   };
