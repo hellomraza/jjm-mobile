@@ -38,21 +38,33 @@ export function WorkItemListScreen() {
   const standardWorkItemsQuery = useWorkItems(agreementId);
   const tpiWorkOrdersQuery = useTpiWorkOrders(agreementId);
 
-  const workItems = isTpi
-    ? { data: tpiWorkOrdersQuery.data || [], total: (tpiWorkOrdersQuery.data || []).length }
-    : standardWorkItemsQuery.data;
+  const standardItems = (standardWorkItemsQuery.data?.data || []).map((i: any) => ({
+    ...i,
+    isTpi: false,
+  }));
+  const tpiItems = (tpiWorkOrdersQuery.data || []).map((i: any) => ({
+    ...i,
+    isTpi: true,
+  }));
+
+  const mergedItems = isTpi ? tpiItems : [...standardItems, ...tpiItems];
+
+  const workItems = {
+    data: mergedItems,
+    total: mergedItems.length,
+  };
 
   const isLoading = isTpi
     ? tpiWorkOrdersQuery.isLoading
-    : standardWorkItemsQuery.isLoading;
+    : standardWorkItemsQuery.isLoading || tpiWorkOrdersQuery.isLoading;
 
   const isError = isTpi
     ? tpiWorkOrdersQuery.isError
-    : standardWorkItemsQuery.isError;
+    : standardWorkItemsQuery.isError || tpiWorkOrdersQuery.isError;
 
   const isRefetchingWorkItems = isTpi
     ? tpiWorkOrdersQuery.isRefetching
-    : standardWorkItemsQuery.isRefetching;
+    : standardWorkItemsQuery.isRefetching || tpiWorkOrdersQuery.isRefetching;
 
   const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -61,17 +73,11 @@ export function WorkItemListScreen() {
   const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
 
   const handleRefresh = () => {
-    if (isTpi) {
-      Promise.allSettled([
-        tpiWorkOrdersQuery.refetch(),
-        refetchUserProfile(),
-      ]).then(() => undefined);
-    } else {
-      Promise.allSettled([
-        standardWorkItemsQuery.refetch(),
-        refetchUserProfile(),
-      ]).then(() => undefined);
-    }
+    Promise.allSettled([
+      standardWorkItemsQuery.refetch(),
+      tpiWorkOrdersQuery.refetch(),
+      refetchUserProfile(),
+    ]).then(() => undefined);
   };
 
   const handleLogout = async () => {
@@ -105,9 +111,8 @@ export function WorkItemListScreen() {
   };
 
   const getContractorName = (
-    item: NonNullable<typeof workItems>['data'][number],
+    item: any,
   ): string => {
-    console.log(item)
     const enrichedContractorName = item.contractor?.name;
 
     if (enrichedContractorName) {
@@ -120,13 +125,14 @@ export function WorkItemListScreen() {
   const renderItem = ({
     item,
   }: {
-    item: NonNullable<typeof workItems>['data'][number];
+    item: any;
   }) => {
     const safeProgress = Math.max(
       0,
       Math.min(100, item.progress_percentage ?? 0),
     );
     const statusStyles = getStatusStyles(item.status);
+    const itemIsTpi = Boolean(item.isTpi || isTpi);
 
     return (
       <Pressable
@@ -136,7 +142,7 @@ export function WorkItemListScreen() {
           navigation.navigate('WorkItemDetails', {
             workItemId: item.id,
             title: item.title,
-            ...(isTpi ? { isTpi: true } : {}),
+            ...(itemIsTpi ? { isTpi: true } : {}),
           })
         }
       >
@@ -157,11 +163,19 @@ export function WorkItemListScreen() {
           </Text>
         </View>
 
-        <Text style={styles.itemLabel}>Overall Progress</Text>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${safeProgress}%` }]} />
-        </View>
-        <Text style={styles.progressText}>{safeProgress}%</Text>
+        {!itemIsTpi ? (
+          <>
+            <Text style={styles.itemLabel}>Overall Progress</Text>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${safeProgress}%` }]} />
+            </View>
+            <Text style={styles.progressText}>{safeProgress}%</Text>
+          </>
+        ) : (
+          <View style={{ marginTop: spacing.xs }}>
+            <Text style={styles.itemLabel}>TPI Inspection Work Order</Text>
+          </View>
+        )}
 
         <Text style={styles.itemMeta}>
           Contractor: {getContractorName(item)}

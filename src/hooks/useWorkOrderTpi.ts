@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
 
+export interface WorkOrderTpiPhotoItem {
+  id: string;
+  image_url: string;
+  latitude?: number | string;
+  longitude?: number | string;
+  timestamp?: string;
+  uploader_role?: string;
+  created_at?: string;
+}
+
 export interface WorkOrderTpiComponent {
   id: string;
   name: string;
@@ -10,6 +20,8 @@ export interface WorkOrderTpiComponent {
   status: 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED';
   remarks?: string;
   approved_photo_id?: string;
+  component_id?: number;
+  photos?: WorkOrderTpiPhotoItem[];
 }
 
 export interface WorkOrderTpi {
@@ -44,6 +56,11 @@ export const tpiWorkOrdersQueryKey = (agreementId?: string) =>
 export const tpiWorkOrderQueryKey = (id: string) =>
   ['tpiWorkOrder', id] as const;
 
+export const tpiComponentPhotosQueryKey = (
+  workOrderTpiId: string,
+  componentId: string,
+) => ['tpiComponentPhotos', workOrderTpiId, componentId] as const;
+
 export async function fetchTpiAgreements() {
   const response = await api.get('/work-order-tpi/agreements');
   const data = response.data?.data || response.data || [];
@@ -60,7 +77,22 @@ export async function fetchTpiWorkOrders(agreementId?: string) {
 
 export async function fetchTpiWorkOrder(id: string): Promise<WorkOrderTpi> {
   const response = await api.get(`/work-order-tpi/${id}`);
-  return response.data;
+  const data = response.data?.data || response.data;
+  return data;
+}
+
+export async function fetchTpiComponentPhotos(
+  workOrderTpiId: string,
+  componentId: string,
+): Promise<WorkOrderTpiPhotoItem[]> {
+  if (!workOrderTpiId || !componentId) {
+    return [];
+  }
+  const response = await api.get(
+    `/work-order-tpi/${workOrderTpiId}/components/${componentId}/photos`,
+  );
+  const data = response.data?.data || response.data || [];
+  return Array.isArray(data) ? data : [];
 }
 
 export async function uploadTpiPhoto(payload: UploadTpiPhotoPayload) {
@@ -98,12 +130,29 @@ export function useTpiWorkOrder(id: string) {
   });
 }
 
+export function useTpiComponentPhotos(
+  workOrderTpiId: string,
+  componentId: string,
+) {
+  return useQuery({
+    queryKey: tpiComponentPhotosQueryKey(workOrderTpiId, componentId),
+    queryFn: () => fetchTpiComponentPhotos(workOrderTpiId, componentId),
+    enabled: !!workOrderTpiId && !!componentId,
+  });
+}
+
 export function useUploadTpiPhotoMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: uploadTpiPhoto,
     onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: tpiComponentPhotosQueryKey(
+          variables.workOrderTpiId,
+          variables.componentId,
+        ),
+      });
       queryClient.invalidateQueries({
         queryKey: tpiWorkOrderQueryKey(variables.workOrderTpiId),
       });

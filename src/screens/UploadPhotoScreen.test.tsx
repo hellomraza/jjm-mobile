@@ -10,6 +10,8 @@ const mockUseUploadPhotoMutation = jest.fn();
 const mockUseComponents = jest.fn();
 const mockUseComponentPhotos = jest.fn();
 const mockUseComponentPhotoStatuses = jest.fn();
+const mockUseTpiWorkOrder = jest.fn();
+const mockUseTpiComponentPhotos = jest.fn();
 const mockGetCurrentPosition = jest.fn();
 const mockRequestAuthorization = jest.fn();
 const mockCompressImageForUpload = jest.fn();
@@ -59,6 +61,17 @@ jest.mock('../hooks/useComponents', () => ({
   useComponents: (...args: unknown[]) => mockUseComponents(...args),
 }));
 
+jest.mock('../hooks/useWorkOrderTpi', () => ({
+  useUploadTpiPhotoMutation: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+  }),
+  useTpiWorkOrder: (...args: unknown[]) => mockUseTpiWorkOrder(...args),
+  useTpiComponentPhotos: (...args: unknown[]) => mockUseTpiComponentPhotos(...args),
+}));
+
 jest.mock('../utils/imageCompression', () => ({
   compressImageForUpload: (...args: unknown[]) =>
     mockCompressImageForUpload(...args),
@@ -88,6 +101,18 @@ describe('UploadPhotoScreen', () => {
       latitude: 26.9124,
       longitude: 75.7873,
     };
+    mockUseTpiWorkOrder.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+    mockUseTpiComponentPhotos.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
     mockUseUploadPhotoMutation.mockReturnValue({
       mutate: mockMutate,
       isPending: false,
@@ -657,5 +682,59 @@ describe('UploadPhotoScreen', () => {
     expect(mockMutate).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();
+  });
+
+  it('renders uploaded photo details and hides submit button for TPI when photo is already uploaded', async () => {
+    mockUseTpiWorkOrder.mockReturnValue({
+      data: {
+        id: 'tpi-work-order-1',
+        title: 'TPI Order',
+        components: [
+          {
+            id: 'component-1',
+            name: 'Inspection Milestone 1',
+            progress: 85,
+            status: 'IN_PROGRESS',
+            photos: [
+              {
+                id: 'photo-1',
+                image_url: 'https://res.cloudinary.com/demo/tpi-photo.jpg',
+                latitude: 26.9124,
+                longitude: 75.7873,
+                timestamp: '2026-03-17T12:00:00.000Z',
+              },
+            ],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    mockRouteParams = {
+      workItemId: 'tpi-work-order-1',
+      componentId: 'component-1',
+      componentName: 'Inspection Milestone 1',
+      capturedPhotoPath: '',
+      capturedAt: '',
+      latitude: undefined as any,
+      longitude: undefined as any,
+      isTpi: true as any,
+    };
+
+    const root = await renderScreen();
+
+    expect(
+      root.findByProps({ testID: 'upload-tpi-completed-banner' }),
+    ).toBeTruthy();
+    expect(
+      root.findByProps({ testID: 'upload-tpi-uploaded-text' }),
+    ).toBeTruthy();
+    expect(() =>
+      root.findByProps({ testID: 'upload-submit-button' }),
+    ).toThrow();
+    expect(() =>
+      root.findByProps({ testID: 'upload-photo-placeholder' }),
+    ).toThrow();
   });
 });
