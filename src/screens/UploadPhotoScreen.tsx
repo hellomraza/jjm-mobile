@@ -23,6 +23,7 @@ import {
   useComponentPhotoStatuses,
   useUploadPhotoMutation,
 } from '../hooks/usePhotos';
+import { useUser } from '../hooks/useUser';
 import {
   useTpiComponentPhotos,
   useTpiWorkOrder,
@@ -156,6 +157,7 @@ export function UploadPhotoScreen() {
   const [cloudinaryProgress, setCloudinaryProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const { data: userProfile } = useUser();
   const { data: components } = useComponents(isTpi ? '' : workItemId);
   const { data: tpiWorkOrder } = useTpiWorkOrder(isTpi ? workItemId : '');
   const { data: photos } = useComponentPhotos(isTpi ? '' : componentId);
@@ -172,13 +174,28 @@ export function UploadPhotoScreen() {
   const tpiMutation = useUploadTpiPhotoMutation();
   const mutation = isTpi ? tpiMutation : svsMutation;
 
+  const isTpiOfficer = Boolean(isTpi || userProfile?.role === 'TPI');
+  const isEmployee = Boolean(userProfile?.role === 'EM' && !isTpi);
+
   const tpiComponent = tpiWorkOrder?.components?.find(
     c =>
       c.id === componentId ||
       (c.component_id && String(c.component_id) === String(componentId)),
   );
 
-  const tpiExistingPhoto = tpiPhotos?.[0] || tpiComponent?.photos?.[0];
+  const tpiExistingPhoto = isTpiOfficer
+    ? tpiPhotos?.find(p => p.uploader_role === 'TPI') ||
+      tpiComponent?.photos?.find(p => p.uploader_role === 'TPI') ||
+      tpiPhotos?.[0] ||
+      tpiComponent?.photos?.[0]
+    : tpiPhotos?.find(
+        p =>
+          p.uploader_role === 'EM' &&
+          (!userProfile?.id || p.uploader_id === userProfile.id || !p.uploader_id),
+      ) ||
+      tpiPhotos?.find(p => p.uploader_role === 'EM') ||
+      tpiComponent?.photos?.find(p => p.uploader_role === 'EM');
+
   const hasTpiUploaded = isTpi && Boolean(tpiExistingPhoto?.image_url);
 
   const orderedComponents = [...(components ?? [])].sort((a, b) => {
@@ -198,16 +215,23 @@ export function UploadPhotoScreen() {
     !firstIncompleteComponent ||
     firstIncompleteComponent.id === componentId;
   const isCurrentComponentApproved = currentComponent?.status === 'APPROVED';
-  const photoCount = photoStatuses?.length ?? 0;
+
+  const filteredPhotoStatuses = isEmployee
+    ? photoStatuses?.filter(
+        ps => ps.uploader_role !== 'TPI' && ps.photo?.employee?.role !== 'TPI',
+      )
+    : photoStatuses;
+
+  const photoCount = filteredPhotoStatuses?.length ?? 0;
   const selectedPhotoCount =
-    photoStatuses?.filter(photoStatus => photoStatus.status === 'SELECTED')
+    filteredPhotoStatuses?.filter(photoStatus => photoStatus.status === 'SELECTED')
       .length ?? 0;
   const approvedPhotoCount =
-    photoStatuses?.filter(photoStatus => photoStatus.status === 'APPROVED')
+    filteredPhotoStatuses?.filter(photoStatus => photoStatus.status === 'APPROVED')
       .length ?? 0;
-  const approvedPhotoStatuses = getApprovedPhotoStatuses(photoStatuses);
+  const approvedPhotoStatuses = getApprovedPhotoStatuses(filteredPhotoStatuses);
 
-  const sortedStatuses = sortPhotoStatuses(photoStatuses);
+  const sortedStatuses = sortPhotoStatuses(filteredPhotoStatuses);
   const highestRankedStatusPhoto = sortedStatuses.find(
     item => !!item.photo?.image_url,
   )?.photo?.image_url;
@@ -216,7 +240,7 @@ export function UploadPhotoScreen() {
     ? tpiExistingPhoto?.image_url || capturedPhotoPath
     : isCurrentComponentApproved
     ? approvedPhotoStatuses[approvedPhotoViewIndex]?.photo?.image_url
-    : photoStatuses && photoStatuses.length > 0 && highestRankedStatusPhoto
+    : filteredPhotoStatuses && filteredPhotoStatuses.length > 0 && highestRankedStatusPhoto
     ? highestRankedStatusPhoto
     : capturedPhotoPath;
 

@@ -8,6 +8,7 @@ export interface WorkOrderTpiPhotoItem {
   longitude?: number | string;
   timestamp?: string;
   uploader_role?: string;
+  uploader_id?: string;
   created_at?: string;
 }
 

@@ -61,6 +61,10 @@ jest.mock('../hooks/useComponents', () => ({
   useComponents: (...args: unknown[]) => mockUseComponents(...args),
 }));
 
+jest.mock('../hooks/useUser', () => ({
+  useUser: () => ({ data: { id: 'user-1', role: 'EM' } }),
+}));
+
 jest.mock('../hooks/useWorkOrderTpi', () => ({
   useUploadTpiPhotoMutation: () => ({
     mutate: jest.fn(),

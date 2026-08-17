@@ -1,26 +1,22 @@
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BackButton } from '../components/BackButton';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../hooks/useUser';
 import { useWorkItems } from '../hooks/useWorkItems';
-import { useTpiWorkOrders } from '../hooks/useWorkOrderTpi';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
-import { BackButton } from '../components/BackButton';
 
 type WorkItemListNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'WorkItemList'
 >;
 
-type WorkItemListRouteProp = RouteProp<
-  RootStackParamList,
-  'WorkItemList'
->;
+type WorkItemListRouteProp = RouteProp<RootStackParamList, 'WorkItemList'>;
 
 export function WorkItemListScreen() {
   const navigation = useNavigation<WorkItemListNavigationProp>();
@@ -33,38 +29,24 @@ export function WorkItemListScreen() {
     isRefetching: isRefetchingUserProfile,
   } = useUser();
 
-  const isTpi = isTpiRoute || userProfile?.role === 'TPI';
+  const isTpi = Boolean(isTpiRoute || userProfile?.role === 'TPI');
 
-  const standardWorkItemsQuery = useWorkItems(agreementId);
-  const tpiWorkOrdersQuery = useTpiWorkOrders(agreementId);
+  const workItemsQuery = useWorkItems(agreementId);
 
-  const standardItems = (standardWorkItemsQuery.data?.data || []).map((i: any) => ({
+  const rawItems = workItemsQuery.data?.data || [];
+  const mergedItems = rawItems.map((i: any) => ({
     ...i,
-    isTpi: false,
+    isTpi: i.isTpi ?? (i.schemetype === 'TPI' || isTpi),
   }));
-  const tpiItems = (tpiWorkOrdersQuery.data || []).map((i: any) => ({
-    ...i,
-    isTpi: true,
-  }));
-
-  const mergedItems = isTpi ? tpiItems : [...standardItems, ...tpiItems];
 
   const workItems = {
     data: mergedItems,
     total: mergedItems.length,
   };
 
-  const isLoading = isTpi
-    ? tpiWorkOrdersQuery.isLoading
-    : standardWorkItemsQuery.isLoading || tpiWorkOrdersQuery.isLoading;
-
-  const isError = isTpi
-    ? tpiWorkOrdersQuery.isError
-    : standardWorkItemsQuery.isError || tpiWorkOrdersQuery.isError;
-
-  const isRefetchingWorkItems = isTpi
-    ? tpiWorkOrdersQuery.isRefetching
-    : standardWorkItemsQuery.isRefetching || tpiWorkOrdersQuery.isRefetching;
+  const isLoading = workItemsQuery.isLoading;
+  const isError = workItemsQuery.isError;
+  const isRefetchingWorkItems = workItemsQuery.isRefetching;
 
   const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -74,8 +56,7 @@ export function WorkItemListScreen() {
 
   const handleRefresh = () => {
     Promise.allSettled([
-      standardWorkItemsQuery.refetch(),
-      tpiWorkOrdersQuery.refetch(),
+      workItemsQuery.refetch(),
       refetchUserProfile(),
     ]).then(() => undefined);
   };
@@ -110,9 +91,7 @@ export function WorkItemListScreen() {
     };
   };
 
-  const getContractorName = (
-    item: any,
-  ): string => {
+  const getContractorName = (item: any): string => {
     const enrichedContractorName = item.contractor?.name;
 
     if (enrichedContractorName) {
@@ -122,11 +101,7 @@ export function WorkItemListScreen() {
     return item.contractor_id || 'N/A';
   };
 
-  const renderItem = ({
-    item,
-  }: {
-    item: any;
-  }) => {
+  const renderItem = ({ item }: { item: any }) => {
     const safeProgress = Math.max(
       0,
       Math.min(100, item.progress_percentage ?? 0),
@@ -167,7 +142,9 @@ export function WorkItemListScreen() {
           <>
             <Text style={styles.itemLabel}>Overall Progress</Text>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${safeProgress}%` }]} />
+              <View
+                style={[styles.progressFill, { width: `${safeProgress}%` }]}
+              />
             </View>
             <Text style={styles.progressText}>{safeProgress}%</Text>
           </>
@@ -243,7 +220,9 @@ export function WorkItemListScreen() {
             ) : null}
           </View>
         </View>
-        <Text style={styles.title}>Work Items {workItems?.total ? `(${workItems?.total})` : ''}</Text>
+        <Text style={styles.title}>
+          Work Items {workItems?.total ? `(${workItems?.total})` : ''}
+        </Text>
       </View>
 
       {isLoading ? (
@@ -292,7 +271,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondaryBackground,
-    paddingTop: spacing.md
+    paddingTop: spacing.md,
   },
   menuBackdrop: {
     ...StyleSheet.absoluteFillObject,
