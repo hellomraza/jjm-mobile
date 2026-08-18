@@ -19,9 +19,16 @@ import { BackButton } from '../components/BackButton';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useComponents } from '../hooks/useComponents';
 import {
+  useComponentPhotos,
   useComponentPhotoStatuses,
   useUploadPhotoMutation,
 } from '../hooks/usePhotos';
+import {
+  useTpiReferencePhotos,
+  useTpiReferencePhotoStatus,
+  useUploadTpiReferencePhotoMutation,
+} from '../hooks/useTpiPhotos';
+import { useUser } from '../hooks/useUser';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { uploadToCloudinary } from '../services/cloudinaryUpload';
 import { colors } from '../theme/colors';
@@ -121,6 +128,7 @@ function getApprovedPhotoStatuses(
       photoStatus.status === 'APPROVED' && !!photoStatus.photo?.image_url,
   );
 }
+
 export function UploadPhotoScreen() {
   const navigation = useNavigation<UploadPhotoNavigationProp>();
   const route = useRoute<UploadPhotoRouteProp>();
@@ -133,6 +141,9 @@ export function UploadPhotoScreen() {
     latitude,
     longitude,
   } = route.params;
+
+  const { data: user } = useUser();
+  const isTpiStaff = user?.role === 'TPI_STAFF';
 
   const [approvedPhotoViewIndex, setApprovedPhotoViewIndex] = useState(0);
 
@@ -149,9 +160,18 @@ export function UploadPhotoScreen() {
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { data: components } = useComponents(workItemId);
+  const { data: componentPhotos } = useComponentPhotos(componentId);
   const { data: photoStatuses, isLoading: isPhotoStatusesLoading } =
     useComponentPhotoStatuses(componentId);
   const mutation = useUploadPhotoMutation(workItemId, componentId);
+
+  // TPI hooks
+  const { data: tpiPhotos, isLoading: isTpiPhotosLoading } =
+    useTpiReferencePhotos(isTpiStaff ? componentId : '');
+  const { data: tpiStatus } = useTpiReferencePhotoStatus(
+    isTpiStaff ? componentId : '',
+  );
+  const tpiMutation = useUploadTpiReferencePhotoMutation();
 
   const orderedComponents = [...(components ?? [])].sort((a, b) => {
     const orderA = a.component?.order_number ?? Number.MAX_SAFE_INTEGER;
@@ -166,8 +186,16 @@ export function UploadPhotoScreen() {
     component => component.id === componentId,
   );
   const isCurrentComponentAllowed =
-    !firstIncompleteComponent || firstIncompleteComponent.id === componentId;
+    isTpiStaff ||
+    !firstIncompleteComponent ||
+    firstIncompleteComponent.id === componentId;
   const isCurrentComponentApproved = currentComponent?.status === 'APPROVED';
+
+  // TPI lock check
+  const isTpiReferenceSelected = tpiStatus?.status === 'SELECTED';
+  const isTpiLocked =
+    isTpiStaff && (isTpiReferenceSelected || isCurrentComponentApproved);
+
   const photoCount = photoStatuses?.length ?? 0;
   const selectedPhotoCount =
     photoStatuses?.filter(photoStatus => photoStatus.status === 'SELECTED')
@@ -175,11 +203,13 @@ export function UploadPhotoScreen() {
   const approvedPhotoCount =
     photoStatuses?.filter(photoStatus => photoStatus.status === 'APPROVED')
       .length ?? 0;
+  const sortedStatuses = sortPhotoStatuses(photoStatuses);
+  const highestRankedStatusPhotoUrl = sortedStatuses[0]?.photo?.image_url;
   const approvedPhotoStatuses = getApprovedPhotoStatuses(photoStatuses);
 
   const previewPhotoUrl = isCurrentComponentApproved
     ? approvedPhotoStatuses[approvedPhotoViewIndex]?.photo?.image_url
-    : capturedPhotoPath;
+    : highestRankedStatusPhotoUrl || capturedPhotoPath;
 
   useEffect(() => {
     if (typeof latitude === 'number' && typeof longitude === 'number') {
@@ -213,7 +243,10 @@ export function UploadPhotoScreen() {
     typeof latitude === 'number' ? latitude : deviceLocation?.latitude;
   const resolvedLongitude =
     typeof longitude === 'number' ? longitude : deviceLocation?.longitude;
-  const isBusy = mutation.isPending || uploadStage !== 'idle';
+  const isBusy =
+    mutation.isPending ||
+    tpiMutation.isPending ||
+    uploadStage !== 'idle';
   const uploadProgressPercent = Math.max(0, Math.min(100, cloudinaryProgress));
 
   const progressPercent = getProgressPercent(
@@ -230,17 +263,29 @@ export function UploadPhotoScreen() {
       return `Uploading... ${cloudinaryProgress}%`;
     }
 
-    if (uploadStage === 'submitting' || mutation.isPending) {
+    if (
+      uploadStage === 'submitting' ||
+      mutation.isPending ||
+      tpiMutation.isPending
+    ) {
       return 'Submitting...';
     }
 
-    return 'Submit Photo';
+    return isTpiStaff ? 'Submit Reference Photo' : 'Submit Photo';
   };
 
-  const isLocked = !isCurrentComponentAllowed;
+  const isLocked = isTpiStaff ? isTpiLocked : !isCurrentComponentAllowed;
 
   const navigateToCamera = () => {
-    if (!isCurrentComponentAllowed) {
+    if (isTpiStaff && isTpiLocked) {
+      Alert.alert(
+        'Reference Photo Locked',
+        'A reference photo has already been selected by the TPI agency or the component is approved.',
+      );
+      return;
+    }
+
+    if (!isTpiStaff && !isCurrentComponentAllowed) {
       Alert.alert(
         'Component Locked',
         'Please complete the previous component before adding progress here.',
@@ -256,6 +301,73 @@ export function UploadPhotoScreen() {
   };
 
   const handleSubmit = async () => {
+    if (isTpiStaff) {
+      if (isTpiLocked) {
+        Alert.alert(
+          'Reference Photo Locked',
+          'A reference photo has already been selected by the TPI agency or the component is approved.',
+        );
+        return;
+      }
+
+      if (!capturedPhotoPath) {
+        Alert.alert('No Photo', 'Please capture a photo before submitting.');
+        return;
+      }
+
+      try {
+        setUploadError(null);
+        setCloudinaryProgress(0);
+        setUploadStage('compressing');
+
+        const compressedImage = await compressImageForUpload(capturedPhotoPath);
+
+        setUploadStage('uploading');
+        const photoUrl = await uploadToCloudinary(
+          {
+            uri: compressedImage.uri,
+            type: compressedImage.type,
+            name: compressedImage.name,
+          },
+          {
+            onProgress: _progress => {
+              setCloudinaryProgress(_progress);
+            },
+          },
+        );
+
+        setUploadStage('submitting');
+        tpiMutation.mutate(
+          {
+            component_id: componentId,
+            photoUrl,
+            latitude: resolvedLatitude ?? 0,
+            longitude: resolvedLongitude ?? 0,
+            timestamp: capturedAt ?? new Date().toISOString(),
+          },
+          {
+            onError: () => {
+              setUploadError(
+                'Failed to submit reference photo metadata. Please try again.',
+              );
+              setUploadStage('idle');
+            },
+            onSuccess: () => {
+              setUploadStage('idle');
+            },
+          },
+        );
+      } catch (error) {
+        setUploadStage('idle');
+        setUploadError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to process image upload. Please try again.',
+        );
+      }
+      return;
+    }
+
     const progressValue = parseFloat(progress);
 
     if (Number(currentComponent?.quantity) < Number(progress)) {
@@ -338,7 +450,7 @@ export function UploadPhotoScreen() {
     }
   };
 
-  if (mutation.isSuccess) {
+  if (mutation.isSuccess || tpiMutation.isSuccess) {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
         <BackButton
@@ -348,10 +460,12 @@ export function UploadPhotoScreen() {
         <View style={[styles.scrollContent, styles.centeredContainer]}>
           <View style={styles.card}>
             <Text style={styles.title} testID="upload-success-text">
-              Photo Uploaded!
+              {isTpiStaff ? 'Reference Photo Uploaded!' : 'Photo Uploaded!'}
             </Text>
             <Text style={styles.subtitle}>
-              Your photo has been submitted successfully.
+              {isTpiStaff
+                ? 'Your reference photo has been uploaded for TPI agency review.'
+                : 'Your photo has been submitted successfully.'}
             </Text>
             <PrimaryButton
               label="Done"
@@ -376,10 +490,11 @@ export function UploadPhotoScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-
         <View style={styles.headerCard}>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.title}>Upload Photo</Text>
+            <Text style={styles.title}>
+              {isTpiStaff ? 'TPI Reference Photo' : 'Upload Photo'}
+            </Text>
             <View
               style={[
                 styles.statusChip,
@@ -399,22 +514,35 @@ export function UploadPhotoScreen() {
             </View>
           </View>
           <Text style={styles.subtitle}>{componentName}</Text>
-          <View
-            style={styles.progressTrack}
-            testID={`component-progress-track-${componentId}`}
-          >
-            <View
-              style={[styles.progressFill, { width: `${progressPercent}%` }]}
-              testID={`component-progress-fill-${componentId}`}
-            />
-          </View>
-          <Text style={styles.meta}>
-            Progress:{' '}
-            {formatProgress(
-              currentComponent?.progress,
-              currentComponent?.quantity,
-            )}
-          </Text>
+          {isTpiStaff ? (
+            <View style={styles.tpiHeaderContainer}>
+              <Text style={styles.tpiHeaderText}>
+                Baseline Reference Evidence • Quality Control
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View
+                style={styles.progressTrack}
+                testID={`component-progress-track-${componentId}`}
+              >
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${progressPercent}%` },
+                  ]}
+                  testID={`component-progress-fill-${componentId}`}
+                />
+              </View>
+              <Text style={styles.meta}>
+                Progress:{' '}
+                {formatProgress(
+                  currentComponent?.progress,
+                  currentComponent?.quantity,
+                )}
+              </Text>
+            </>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -453,6 +581,8 @@ export function UploadPhotoScreen() {
               >
                 {isCurrentComponentApproved
                   ? 'Approved photo(s) available'
+                  : isTpiStaff
+                  ? `Reference photo ready: ${capturedPhotoPath}`
                   : photoCount > 0
                   ? getPhotoStatusesSummaryText(
                       photoCount,
@@ -475,7 +605,9 @@ export function UploadPhotoScreen() {
               onPress={navigateToCamera}
               testID="upload-photo-placeholder"
             >
-              <Text style={styles.uploadPlaceholderTitle}>Capture Photo</Text>
+              <Text style={styles.uploadPlaceholderTitle}>
+                {isTpiStaff ? 'Capture Reference Photo' : 'Capture Photo'}
+              </Text>
               <Text style={styles.uploadPlaceholderHint}>
                 Tap to open camera
               </Text>
@@ -513,6 +645,74 @@ export function UploadPhotoScreen() {
             </View>
           ) : null}
 
+          {!isTpiStaff && (componentPhotos?.length ?? 0) > 0 ? (
+            <View
+              style={styles.approvedPhotosSection}
+              testID="upload-photo-gallery-section"
+            >
+              <Text style={styles.approvedPhotosTitle}>Reviewed Photos</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.approvedPhotosList}
+              >
+                {[...(componentPhotos ?? [])]
+                  .sort((a, b) =>
+                    (b.created_at || '').localeCompare(a.created_at || ''),
+                  )
+                  .map((photo, index) => (
+                    <View key={photo.id} style={styles.approvedPhotoCard}>
+                      <Image
+                        source={{ uri: photo.image_url || '' }}
+                        style={styles.approvedPhotoImage}
+                        resizeMode="cover"
+                        testID={`upload-photo-gallery-${index}`}
+                      />
+                    </View>
+                  ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {/* TPI Reference Photos List */}
+          {isTpiStaff && (tpiPhotos?.length ?? 0) > 0 ? (
+            <View
+              style={styles.approvedPhotosSection}
+              testID="upload-tpi-photos-section"
+            >
+              <Text style={styles.approvedPhotosTitle}>
+                Uploaded Reference Photos ({tpiPhotos?.length})
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.approvedPhotosList}
+              >
+                {tpiPhotos?.map((photo, index) => {
+                  const isSelected =
+                    tpiStatus?.status === 'SELECTED' &&
+                    tpiStatus?.photo_id === photo.id;
+                  return (
+                    <View key={photo.id} style={styles.approvedPhotoCard}>
+                      <Image
+                        source={{ uri: photo.image_url }}
+                        style={styles.approvedPhotoImage}
+                        resizeMode="cover"
+                      />
+                      {isSelected ? (
+                        <View style={styles.tpiSelectedBadge}>
+                          <Text style={styles.tpiSelectedBadgeText}>
+                            Selected
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
+
           {typeof resolvedLatitude === 'number' &&
           typeof resolvedLongitude === 'number' ? (
             <View style={styles.infoRow}>
@@ -546,7 +746,15 @@ export function UploadPhotoScreen() {
             </View>
           ) : null}
 
-          {!isCurrentComponentAllowed && !isCurrentComponentApproved ? (
+          {isTpiStaff && isTpiLocked ? (
+            <Text
+              style={styles.sequenceWarning}
+              testID="upload-tpi-locked-warning"
+            >
+              Reference photo has been selected by TPI agency or component is
+              approved. Uploading is disabled.
+            </Text>
+          ) : !isCurrentComponentAllowed && !isCurrentComponentApproved ? (
             <Text
               style={styles.sequenceWarning}
               testID="upload-sequence-warning"
@@ -555,7 +763,7 @@ export function UploadPhotoScreen() {
             </Text>
           ) : null}
 
-          {!isLocked ? (
+          {!isLocked && !isTpiStaff ? (
             <>
               <Text style={styles.label}>Progress Value</Text>
               <TextInput
@@ -570,7 +778,7 @@ export function UploadPhotoScreen() {
             </>
           ) : null}
 
-          {uploadError || mutation.isError ? (
+          {uploadError || mutation.isError || tpiMutation.isError ? (
             <Text style={styles.errorText} testID="upload-error-text">
               {uploadError ?? 'Upload failed. Please try again.'}
             </Text>
@@ -580,11 +788,11 @@ export function UploadPhotoScreen() {
             <Pressable
               style={[
                 styles.submitButton,
-                (isBusy || !isCurrentComponentAllowed) &&
+                (isBusy || (!isTpiStaff && !isCurrentComponentAllowed)) &&
                   styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={isBusy || !isCurrentComponentAllowed}
+              disabled={isBusy || (!isTpiStaff && !isCurrentComponentAllowed)}
               testID="upload-submit-button"
             >
               {uploadStage === 'uploading' ? (
@@ -607,11 +815,9 @@ export function UploadPhotoScreen() {
 
               <Text
                 style={styles.submitButtonText}
-                testID="upload-loading-text"
+                testID="upload-submit-button-text"
               >
-                {uploadStage === 'uploading'
-                  ? `Uploading... ${uploadProgressPercent}%`
-                  : getLoadingLabel()}
+                {getLoadingLabel()}
               </Text>
             </Pressable>
           ) : null}
@@ -873,5 +1079,31 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textPrimary,
     marginTop: spacing.xxs,
+  },
+  tpiHeaderContainer: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: '#F3E8FF',
+    borderRadius: radius.sm,
+    marginTop: spacing.xs,
+  },
+  tpiHeaderText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: '#6B21A8',
+  },
+  tpiSelectedBadge: {
+    position: 'absolute',
+    bottom: spacing.xxs,
+    right: spacing.xxs,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: radius.xs,
+  },
+  tpiSelectedBadgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
   },
 });

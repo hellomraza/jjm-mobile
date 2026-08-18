@@ -7,6 +7,7 @@ const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockUseComponents = jest.fn();
 const mockRefetchComponents = jest.fn();
+const mockUseUser = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -23,10 +24,17 @@ jest.mock('../hooks/useComponents', () => ({
   useComponents: (workItemId: string) => mockUseComponents(workItemId),
 }));
 
+jest.mock('../hooks/useUser', () => ({
+  useUser: () => mockUseUser(),
+}));
+
 describe('ComponentListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRefetchComponents.mockResolvedValue(undefined);
+    mockUseUser.mockReturnValue({
+      data: { role: 'EM' },
+    });
   });
 
   async function renderScreen() {
@@ -230,5 +238,69 @@ describe('ComponentListScreen', () => {
     });
 
     expect(mockRefetchComponents).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows TPI_STAFF to open any component without out-of-order restriction', async () => {
+    mockUseUser.mockReturnValue({
+      data: { role: 'TPI_STAFF' },
+    });
+
+    mockUseComponents.mockReturnValue({
+      data: [
+        {
+          id: 'component-1',
+          work_item_id: 'work-item-1',
+          component_id: 'master-component-1',
+          quantity: 200,
+          progress: 50,
+          status: 'IN_PROGRESS',
+          created_at: '2026-03-16T00:00:00Z',
+          updated_at: '2026-03-16T00:00:00Z',
+          component: {
+            id: 'master-component-1',
+            name: 'Pumping Mains',
+            unit: 'meters',
+            order_number: 1,
+            created_at: '2026-03-16T00:00:00Z',
+            updated_at: '2026-03-16T00:00:00Z',
+          },
+        },
+        {
+          id: 'component-2',
+          work_item_id: 'work-item-1',
+          component_id: 'master-component-2',
+          quantity: 100,
+          progress: 0,
+          status: 'PENDING',
+          created_at: '2026-03-16T00:00:00Z',
+          updated_at: '2026-03-16T00:00:00Z',
+          component: {
+            id: 'master-component-2',
+            name: 'Valve',
+            unit: 'nos',
+            order_number: 2,
+            created_at: '2026-03-16T00:00:00Z',
+            updated_at: '2026-03-16T00:00:00Z',
+          },
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetchComponents,
+      isRefetching: false,
+    });
+
+    const root = await renderScreen();
+
+    // TPI staff can tap component-2 directly even though component-1 is not approved
+    act(() => {
+      root.findByProps({ testID: 'component-row-component-2' }).props.onPress();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('UploadPhoto', {
+      workItemId: 'work-item-1',
+      componentId: 'component-2',
+      componentName: 'Valve',
+    });
   });
 });
