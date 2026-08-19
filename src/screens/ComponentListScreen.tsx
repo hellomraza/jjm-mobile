@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { useComponents } from '../hooks/useComponents';
+import { useUser } from '../hooks/useUser';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight, radius, spacing } from '../theme/designSystem';
@@ -84,6 +85,9 @@ export function ComponentListScreen() {
   const navigation = useNavigation<ComponentListNavigationProp>();
   const route = useRoute<ComponentListRouteProp>();
   const { workItemId, title, work_code } = route.params;
+  const { data: user } = useUser();
+  const isTpiStaff = user?.role === 'TPI_STAFF';
+
   const {
     data: components,
     isLoading,
@@ -115,6 +119,7 @@ export function ComponentListScreen() {
     const progressPercent = getProgressPercent(item.progress, item.quantity);
     const statusVariant = getStatusVariant(item.status);
     const isOutOfOrderLocked =
+      !isTpiStaff &&
       !!activeComponentId &&
       item.id !== activeComponentId &&
       item.status !== 'APPROVED';
@@ -181,30 +186,40 @@ export function ComponentListScreen() {
           </Text>
         ) : null}
 
-        <View style={styles.progressHeader}>
-          <Text style={styles.metaLabel}>Overall Progress</Text>
-          <Text style={styles.progressPercentText}>
-            {Math.round(progressPercent)}%
-          </Text>
-        </View>
+        {isTpiStaff ? (
+          <View style={styles.tpiMetaContainer}>
+            <Text style={styles.tpiMetaText}>
+              Tap to capture on-site baseline reference photos
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.progressHeader}>
+              <Text style={styles.metaLabel}>Overall Progress</Text>
+              <Text style={styles.progressPercentText}>
+                {Math.round(progressPercent)}%
+              </Text>
+            </View>
 
-        <View
-          style={styles.progressTrack}
-          testID={`component-progress-track-${item.id}`}
-        >
-          <View
-            style={[styles.progressFill, { width: `${progressPercent}%` }]}
-            testID={`component-progress-fill-${item.id}`}
-          />
-        </View>
+            <View
+              style={styles.progressTrack}
+              testID={`component-progress-track-${item.id}`}
+            >
+              <View
+                style={[styles.progressFill, { width: `${progressPercent}%` }]}
+                testID={`component-progress-fill-${item.id}`}
+              />
+            </View>
 
-        <Text style={styles.meta}>
-          Progress: {formatProgress(item.progress, item.quantity)}
-        </Text>
+            <Text style={styles.meta}>
+              Progress: {formatProgress(item.progress, item.quantity)}
+            </Text>
 
-        {typeof item.quantity === 'number' ? (
-          <Text style={styles.meta}>Quantity: {item.quantity}</Text>
-        ) : null}
+            {typeof item.quantity === 'number' ? (
+              <Text style={styles.meta}>Quantity: {item.quantity}</Text>
+            ) : null}
+          </>
+        )}
       </Pressable>
     );
   };
@@ -436,5 +451,17 @@ const styles = StyleSheet.create({
     width: '50%',
     borderRadius: radius.sm,
     backgroundColor: '#E7ECF1',
+  },
+  tpiMetaContainer: {
+    marginTop: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: '#F3E8FF',
+    borderRadius: radius.sm,
+  },
+  tpiMetaText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: '#6B21A8',
   },
 });

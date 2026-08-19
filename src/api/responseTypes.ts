@@ -1,4 +1,4 @@
-export type UserRole = 'HO' | 'DO' | 'CO' | 'EM';
+export type UserRole = 'HO' | 'DO' | 'CO' | 'EM' | 'TPI' | 'TPI_STAFF';
 
 export type WorkItemStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 
@@ -270,3 +270,29 @@ export type CreateLocationResponse = LocationResponseDto;
 export type ListLocationsResponse = PaginatedResponse<LocationResponseDto>;
 export type GetLocationByIdResponse = LocationResponseDto;
 export type UpdateLocationResponse = LocationResponseDto;
+
+export interface TpiReferencePhotoDto {
+  id: string;
+  image_url: string;
+  latitude: number | null;
+  longitude: number | null;
+  timestamp: string | null;
+  component_id: string;
+  work_item_id: string;
+  created_at: string;
+  uploaded_by_user_id: string;
+}
+
+export type TpiReferencePhotoStatusValue = 'UPLOADED' | 'SELECTED';
+
+export interface TpiPhotoStatusResponseDto {
+  id: string;
+  photo_id: string;
+  work_item_id: string;
+  component_id: string;
+  status: TpiReferencePhotoStatusValue;
+  selected_by?: string | null;
+  selected_at?: string | null;
+  photo?: TpiReferencePhotoDto;
+}
+

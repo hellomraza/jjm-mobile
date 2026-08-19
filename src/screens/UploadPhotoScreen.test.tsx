@@ -46,6 +46,12 @@ jest.mock('@react-navigation/native', () => ({
   }),
 }));
 
+const mockUseUser = jest.fn();
+const mockTpiMutate = jest.fn();
+const mockUseTpiReferencePhotos = jest.fn();
+const mockUseTpiReferencePhotoStatus = jest.fn();
+const mockUseUploadTpiReferencePhotoMutation = jest.fn();
+
 jest.mock('../hooks/usePhotos', () => ({
   useUploadPhotoMutation: (...args: unknown[]) =>
     mockUseUploadPhotoMutation(...args),
@@ -57,6 +63,19 @@ jest.mock('../hooks/usePhotos', () => ({
 
 jest.mock('../hooks/useComponents', () => ({
   useComponents: (...args: unknown[]) => mockUseComponents(...args),
+}));
+
+jest.mock('../hooks/useUser', () => ({
+  useUser: () => mockUseUser(),
+}));
+
+jest.mock('../hooks/useTpiPhotos', () => ({
+  useTpiReferencePhotos: (...args: unknown[]) =>
+    mockUseTpiReferencePhotos(...args),
+  useTpiReferencePhotoStatus: (...args: unknown[]) =>
+    mockUseTpiReferencePhotoStatus(...args),
+  useUploadTpiReferencePhotoMutation: () =>
+    mockUseUploadTpiReferencePhotoMutation(),
 }));
 
 jest.mock('../utils/imageCompression', () => ({
@@ -109,6 +128,25 @@ describe('UploadPhotoScreen', () => {
       type: 'image/jpeg',
       name: 'photo-compressed.jpg',
       sizeInBytes: 180000,
+    });
+    mockUseUser.mockReturnValue({
+      data: { role: 'EM' },
+    });
+    mockUseTpiReferencePhotos.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+    mockUseTpiReferencePhotoStatus.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+    });
+    mockUseUploadTpiReferencePhotoMutation.mockReturnValue({
+      mutate: mockTpiMutate,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
     });
     mockUploadToCloudinary.mockResolvedValue(
       'https://res.cloudinary.com/demo/image/upload/photo.jpg',
@@ -657,5 +695,63 @@ describe('UploadPhotoScreen', () => {
     expect(mockMutate).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();
+  });
+
+  it('hides progress input and calls TPI mutation without progress field for TPI_STAFF', async () => {
+    mockUseUser.mockReturnValue({
+      data: { role: 'TPI_STAFF' },
+    });
+
+    const root = await renderScreen();
+
+    // Verify progress input is completely hidden for TPI staff
+    expect(() => root.findByProps({ testID: 'upload-progress-input' })).toThrow();
+
+    // Press submit
+    const submitButton = root.findByProps({ testID: 'upload-submit-button' });
+    await act(async () => {
+      await submitButton.props.onPress();
+    });
+
+    // Verify TPI mutation is called with photo metadata but NO progress field
+    expect(mockTpiMutate).toHaveBeenCalledTimes(1);
+    expect(mockTpiMutate).toHaveBeenCalledWith(
+      {
+        component_id: 'component-1',
+        photoUrl: 'https://res.cloudinary.com/demo/image/upload/photo.jpg',
+        latitude: 26.9124,
+        longitude: 75.7873,
+        timestamp: '2026-03-17T10:00:00.000Z',
+      },
+      expect.any(Object),
+    );
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it('shows locked warning and disables capture when reference photo is selected for TPI_STAFF', async () => {
+    mockUseUser.mockReturnValue({
+      data: { role: 'TPI_STAFF' },
+    });
+    mockUseTpiReferencePhotoStatus.mockReturnValue({
+      data: {
+        id: 'tpi-status-1',
+        photo_id: 'photo-1',
+        work_item_id: 'work-item-1',
+        component_id: 'component-1',
+        status: 'SELECTED',
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    const root = await renderScreen();
+
+    expect(
+      root.findByProps({ testID: 'upload-tpi-locked-warning' }),
+    ).toBeTruthy();
+
+    expect(() =>
+      root.findByProps({ testID: 'upload-submit-button' }),
+    ).toThrow();
   });
 });
