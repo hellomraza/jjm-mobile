@@ -204,12 +204,19 @@ export function UploadPhotoScreen() {
     photoStatuses?.filter(photoStatus => photoStatus.status === 'APPROVED')
       .length ?? 0;
   const sortedStatuses = sortPhotoStatuses(photoStatuses);
-  const highestRankedStatusPhotoUrl = sortedStatuses[0]?.photo?.image_url;
+  const highestRankedStatus = sortedStatuses[0];
+  const hasSelectedOrApproved =
+    highestRankedStatus?.status === 'SELECTED' ||
+    highestRankedStatus?.status === 'SUBMITTED' ||
+    highestRankedStatus?.status === 'APPROVED';
+  const selectedPhotoUrl = hasSelectedOrApproved
+    ? highestRankedStatus?.photo?.image_url
+    : null;
   const approvedPhotoStatuses = getApprovedPhotoStatuses(photoStatuses);
 
   const previewPhotoUrl = isCurrentComponentApproved
     ? approvedPhotoStatuses[approvedPhotoViewIndex]?.photo?.image_url
-    : highestRankedStatusPhotoUrl || capturedPhotoPath;
+    : selectedPhotoUrl || capturedPhotoPath;
 
   useEffect(() => {
     if (typeof latitude === 'number' && typeof longitude === 'number') {
@@ -555,7 +562,13 @@ export function UploadPhotoScreen() {
             </Text>
           ) : previewPhotoUrl ? (
             <>
-              <View
+              <Pressable
+                onPress={
+                  !isCurrentComponentApproved && !isLocked
+                    ? navigateToCamera
+                    : undefined
+                }
+                disabled={isCurrentComponentApproved || isLocked}
                 style={[
                   styles.previewContainer,
                   isCurrentComponentApproved && styles.previewContainerApproved,
@@ -568,7 +581,7 @@ export function UploadPhotoScreen() {
                   resizeMode="cover"
                   testID="upload-photo-preview"
                 />
-              </View>
+              </Pressable>
               <Text
                 style={styles.metaText}
                 testID={
@@ -591,6 +604,24 @@ export function UploadPhotoScreen() {
                     )
                   : `Photo ready: ${capturedPhotoPath}`}
               </Text>
+
+              {!isCurrentComponentApproved && !isLocked ? (
+                <Pressable
+                  style={styles.retakeButton}
+                  onPress={navigateToCamera}
+                  testID="upload-photo-placeholder"
+                >
+                  <Text style={styles.retakeButtonText}>
+                    {capturedPhotoPath
+                      ? isTpiStaff
+                        ? 'Retake Reference Photo'
+                        : 'Retake Photo'
+                      : isTpiStaff
+                      ? 'Capture Reference Photo'
+                      : 'Capture New Photo'}
+                  </Text>
+                </Pressable>
+              ) : null}
             </>
           ) : isCurrentComponentApproved ? (
             <Text
@@ -613,105 +644,6 @@ export function UploadPhotoScreen() {
               </Text>
             </Pressable>
           )}
-
-          {isCurrentComponentApproved && approvedPhotoStatuses.length > 0 ? (
-            <View
-              style={styles.approvedPhotosSection}
-              testID="upload-approved-photos-section"
-            >
-              <Text style={styles.approvedPhotosTitle}>Approved photos</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.approvedPhotosList}
-                testID="upload-approved-photos-list"
-              >
-                {approvedPhotoStatuses.map((photoStatus, index) => (
-                  <TouchableOpacity
-                    key={photoStatus.id}
-                    onPress={() => setApprovedPhotoViewIndex(index)}
-                  >
-                    <View style={styles.approvedPhotoCard}>
-                      <Image
-                        source={{ uri: photoStatus.photo!.image_url }}
-                        style={styles.approvedPhotoImage}
-                        resizeMode="cover"
-                        testID={`upload-approved-photo-${index}`}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
-
-          {!isTpiStaff && (componentPhotos?.length ?? 0) > 0 ? (
-            <View
-              style={styles.approvedPhotosSection}
-              testID="upload-photo-gallery-section"
-            >
-              <Text style={styles.approvedPhotosTitle}>Reviewed Photos</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.approvedPhotosList}
-              >
-                {[...(componentPhotos ?? [])]
-                  .sort((a, b) =>
-                    (b.created_at || '').localeCompare(a.created_at || ''),
-                  )
-                  .map((photo, index) => (
-                    <View key={photo.id} style={styles.approvedPhotoCard}>
-                      <Image
-                        source={{ uri: photo.image_url || '' }}
-                        style={styles.approvedPhotoImage}
-                        resizeMode="cover"
-                        testID={`upload-photo-gallery-${index}`}
-                      />
-                    </View>
-                  ))}
-              </ScrollView>
-            </View>
-          ) : null}
-
-          {/* TPI Reference Photos List */}
-          {isTpiStaff && (tpiPhotos?.length ?? 0) > 0 ? (
-            <View
-              style={styles.approvedPhotosSection}
-              testID="upload-tpi-photos-section"
-            >
-              <Text style={styles.approvedPhotosTitle}>
-                Uploaded Reference Photos ({tpiPhotos?.length})
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.approvedPhotosList}
-              >
-                {tpiPhotos?.map((photo, index) => {
-                  const isSelected =
-                    tpiStatus?.status === 'SELECTED' &&
-                    tpiStatus?.photo_id === photo.id;
-                  return (
-                    <View key={photo.id} style={styles.approvedPhotoCard}>
-                      <Image
-                        source={{ uri: photo.image_url }}
-                        style={styles.approvedPhotoImage}
-                        resizeMode="cover"
-                      />
-                      {isSelected ? (
-                        <View style={styles.tpiSelectedBadge}>
-                          <Text style={styles.tpiSelectedBadgeText}>
-                            Selected
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          ) : null}
 
           {typeof resolvedLatitude === 'number' &&
           typeof resolvedLongitude === 'number' ? (
@@ -821,6 +753,108 @@ export function UploadPhotoScreen() {
               </Text>
             </Pressable>
           ) : null}
+
+          {/* Uploaded / Reviewed Photos Section (Below Submit Button) */}
+          {isCurrentComponentApproved && approvedPhotoStatuses.length > 0 ? (
+            <View
+              style={styles.approvedPhotosSectionBelow}
+              testID="upload-approved-photos-section"
+            >
+              <Text style={styles.approvedPhotosTitle}>Approved photos</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.approvedPhotosList}
+                testID="upload-approved-photos-list"
+              >
+                {approvedPhotoStatuses.map((photoStatus, index) => (
+                  <TouchableOpacity
+                    key={photoStatus.id}
+                    onPress={() => setApprovedPhotoViewIndex(index)}
+                  >
+                    <View style={styles.approvedPhotoCard}>
+                      <Image
+                        source={{ uri: photoStatus.photo!.image_url }}
+                        style={styles.approvedPhotoImage}
+                        resizeMode="cover"
+                        testID={`upload-approved-photo-${index}`}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {!isTpiStaff && (componentPhotos?.length ?? 0) > 0 ? (
+            <View
+              style={styles.approvedPhotosSectionBelow}
+              testID="upload-photo-gallery-section"
+            >
+              <Text style={styles.approvedPhotosTitle}>
+                Uploaded Photos ({componentPhotos?.length})
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.approvedPhotosList}
+              >
+                {[...(componentPhotos ?? [])]
+                  .sort((a, b) =>
+                    (b.created_at || '').localeCompare(a.created_at || ''),
+                  )
+                  .map((photo, index) => (
+                    <View key={photo.id} style={styles.approvedPhotoCard}>
+                      <Image
+                        source={{ uri: photo.image_url || '' }}
+                        style={styles.approvedPhotoImage}
+                        resizeMode="cover"
+                        testID={`upload-photo-gallery-${index}`}
+                      />
+                    </View>
+                  ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {/* TPI Reference Photos List */}
+          {isTpiStaff && (tpiPhotos?.length ?? 0) > 0 ? (
+            <View
+              style={styles.approvedPhotosSectionBelow}
+              testID="upload-tpi-photos-section"
+            >
+              <Text style={styles.approvedPhotosTitle}>
+                Uploaded Reference Photos ({tpiPhotos?.length})
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.approvedPhotosList}
+              >
+                {tpiPhotos?.map((photo) => {
+                  const isSelected =
+                    tpiStatus?.status === 'SELECTED' &&
+                    tpiStatus?.photo_id === photo.id;
+                  return (
+                    <View key={photo.id} style={styles.approvedPhotoCard}>
+                      <Image
+                        source={{ uri: photo.image_url }}
+                        style={styles.approvedPhotoImage}
+                        resizeMode="cover"
+                      />
+                      {isSelected ? (
+                        <View style={styles.tpiSelectedBadge}>
+                          <Text style={styles.tpiSelectedBadgeText}>
+                            Selected
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -928,6 +962,10 @@ const styles = StyleSheet.create({
   approvedPhotosSection: {
     marginBottom: spacing.sm,
   },
+  approvedPhotosSectionBelow: {
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
   approvedPhotosTitle: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
@@ -973,6 +1011,20 @@ const styles = StyleSheet.create({
   uploadPlaceholderHint: {
     fontSize: fontSize.sm,
     color: colors.textPrimary,
+  },
+  retakeButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  retakeButtonText: {
+    color: colors.white,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
   },
   captionError: {
     fontSize: fontSize.sm,
